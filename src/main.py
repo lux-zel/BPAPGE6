@@ -1,26 +1,17 @@
-
+from blast.py import blast_pairwise
 import sys
-
-def read_fasta(filename):
-    with open(filename, 'r') as file:
-        reads = file.read().strip().split('>')
-    return reads
-
-
-
-
-
 
 
 def main():
-
+    
     if len(sys.argv) < 3:
-        print("roep het programma met: python3 main.py <FASTA 1> <FASTA 2>")
+        print("roep het programma met: python3 main.py <QUERY.fasta> <SUBJECT.fasta>")
         sys.exit(1)
-
-    file1 = sys.argv[1]
-    file2 = sys.argv[2]
-
+    
+    query_file = sys.argv[1]
+    subject_file = sys.argv[2]
+    
+    blast_pairwise(query_file, subject_file, 'nucl')
 
 
 if __name__ == '__main__':
