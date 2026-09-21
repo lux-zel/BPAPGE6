@@ -8,10 +8,10 @@ def main():
         print("roep het programma met: python3 main.py <QUERY.fasta> <SUBJECT.fasta>")
         sys.exit(1)
     
-    query_file = sys.argv[1]
-    subject_file = sys.argv[2]
+    query = sys.argv[1]
+    subject = sys.argv[2]
     
-    blast_pairwise(query_file, subject_file, 'nucl')
+    blast_pairwise(query, subject)
 
 
 if __name__ == '__main__':
