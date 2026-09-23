@@ -32,6 +32,33 @@ def blast_pairwise(query, subject):
             subject=subject_fa,
             outfmt=5,
             out=xml_out,
-            evalue=evalue,
-            task='blastn')
+            value=evalue,
+            task='blastn-short')
 
+    stdout, stderr = cline()
+    if stderr:
+        print("Error bij het gebruik van BLAST:", stderr)
+
+    hits = []
+    with open(xml_out) as handle:
+        for record in NCBIXML.parse(handle):
+            for alignment in record.alignments:
+                for hsp in alignment.hsps:
+
+                    hits.append({
+                            "title": alignment.title,
+                            "length": alignment.length,
+                            "evalue": hsp.expect,
+                            "bit-score": hsp.bits,
+                            "identities": hsp.identities,
+                            "align_length": hsp.align_length,
+                            "gaps": hsp.gaps,
+                            "query_start": hsp.query_start,
+                            "query_end": hsp.query_end,
+                            "subject_start": hsp.sbjct_start,
+                            "subject_end": hsp.sbjct_end,
+                            "query_seq": hsp.query,
+                            "match": hsp.match,
+                            "subject_seq": hsp.sbjct
+                            })
+    return hits
