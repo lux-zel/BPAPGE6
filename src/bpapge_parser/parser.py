@@ -16,7 +16,11 @@ def download_uniprot(accession):
     url = f"https://rest.uniprot.org/uniprotkb/{accession}.txt"
     output_file = DATA_DIR / f"{accession}.txt"
 
-    urlretrieve(url, output_file)
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+
+    with urlopen(url, context=ssl_context) as response:
+        with open(output_file, "wb") as file:  # wb = "write binary"
+            file.write(response.read())
 
     print(f"{accession} is gedownload")
 
