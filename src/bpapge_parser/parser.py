@@ -1,6 +1,9 @@
 from pathlib import Path
 from urllib.request import urlopen
 from Bio import SwissProt
+import certifi
+import ssl
+import csv
 
 DATA_DIR = Path("data")
 OUPUT_DIR = Path("output")
