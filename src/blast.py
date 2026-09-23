@@ -4,10 +4,8 @@ van een query tegen een subject.
 """
 
 
-
-from Bio import Blast, Align
-from Bio import SeqIO
-from Bio.Blast import
+import subprocess
+from Bio import Blast
 
 
 def blast_pairwise(query, subject):
@@ -27,18 +25,9 @@ def blast_pairwise(query, subject):
     
     SeqIO.write(SeqIO.SeqRecord(Seq(query), id="query"), "query_fa", "fasta")
     SeqIO.write(SeqIO.SeqRecord(Seq(subject), id="subject"), "subject_fa", "fasta")
-    
-    cline = NcbiblastnCommandline(
-            query=query_fa,
-            subject=subject_fa,
-            outfmt=5,
-            out=xml_out,
-            value=evalue,
-            task='blastn-short')
 
-    stdout, stderr = cline()
-    if stderr:
-        print("Error bij het gebruik van BLAST:", stderr)
+    
+    
 
     hits = []
     with open(xml_out) as handle:
