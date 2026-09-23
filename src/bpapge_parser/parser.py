@@ -86,6 +86,25 @@ def parse_uniprot(file_path):
         print("\nAminozuursequentie:")
         print(record.sequence)
 
+        print("\ncomments:")
+        print(record.comments)
+
+        for go_id, go_term, go_type in go_data:
+            print("\nGO_id, GO_term, GO_type:")
+            print(go_id, go_term, go_type)
+
+        print("\nEnsembl_ID:")
+        print(ensembl_ids)
+
+        print("\nEmbl_ID:")
+        print(embl_ids)
+
+        print("\nKegg_ID:")
+        print(kegg_ids)
+
+        print("\nGene_ID:")
+        print(gene_id)
+
 
 file = download_uniprot("M7BTR0")
 
