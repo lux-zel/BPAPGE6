@@ -3,10 +3,11 @@ dit bestand is een helper python bestand dat een blast opdracht uitvoert
 van een query tegen een subject. 
 """
 
-from Bio.Blast.Applications import NcbiblastnCommandline
-from Bio.Blast import NCBIXML
-from Bio import SeqIO
 
+
+from Bio import Blast, Align
+from Bio import SeqIO
+from Bio.Blast import
 
 
 def blast_pairwise(query, subject):
