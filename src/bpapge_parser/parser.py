@@ -72,7 +72,10 @@ def parse_uniprot(file_path):
         print(record.accessions[0])
 
         print("\nEiwitnaam:")
-        print(record.description)
+        print(record.description.split()[1])
+
+        print("\nEC nummer:")
+        print(record.description.split()[3])
 
         print("\nGen:")
         print(record.gene_name)
