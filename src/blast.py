@@ -23,12 +23,10 @@ def blast_pairwise(query, subject):
     
     """
     
-    SeqIO.write(SeqIO.SeqRecord(Seq(query), id="query"), "query_fa", "fasta")
-    SeqIO.write(SeqIO.SeqRecord(Seq(subject), id="subject"), "subject_fa", "fasta")
 
+    subprocess.call(['bash', 'bash.sh'])
     
     
-
     hits = []
     with open(xml_out) as handle:
         for record in NCBIXML.parse(handle):
