@@ -28,7 +28,7 @@ def download_uniprot(accession):
 
 
 def parse_uniprot(file_path):
-    with open(file_path, encoding="utf=8") as handle:
+    with open(file_path, encoding="utf-8") as handle:
         record = SwissProt.read(handle)
 
         go_data = []
