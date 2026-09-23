@@ -1,4 +1,4 @@
-from blast.py import blast_pairwise
+from blast import blast_pairwise
 import sys
 
 

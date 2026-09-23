@@ -5,8 +5,9 @@ van een query tegen een subject.
 
 
 import subprocess
-from Bio import Blast
+from pathlib import Path
 
+from Bio import Blast
 
 def blast_pairwise(query, subject):
     """
@@ -22,20 +23,23 @@ def blast_pairwise(query, subject):
     hits (dictionary):  Een dictionary met de gevonden hits van de BLAST.
     
     """
-    
 
-    subprocess.call(['bash', 'bash.sh'])
-    
-    
+
+    project_dir = Path(__file__).parent
+    subprocess.run(['bash', str(project_dir / 'blast.sh')], cwd=project_dir, check=True)
+
+
+
     hits = []
-    with open(xml_out) as handle:
-        for record in NCBIXML.parse(handle):
-            for alignment in record.alignments:
-                for hsp in alignment.hsps:
-
+    with open(project_dir / 'hits.xml') as xml_file:
+        records = Blast.parse(xml_file)
+    
+    for record in records:
+        for hit in record:
+            for hsp in hit:
+                    
                     hits.append({
-                            "title": alignment.title,
-                            "length": alignment.length,
+                            
                             "evalue": hsp.expect,
                             "bit-score": hsp.bits,
                             "identities": hsp.identities,
@@ -48,5 +52,6 @@ def blast_pairwise(query, subject):
                             "query_seq": hsp.query,
                             "match": hsp.match,
                             "subject_seq": hsp.sbjct
+
                             })
     return hits
