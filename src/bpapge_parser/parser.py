@@ -1,5 +1,5 @@
 from pathlib import Path
-from urllib.request import urlretrieve
+from urllib.request import urlopen
 from Bio import SwissProt
 
 DATA_DIR = Path("data")
