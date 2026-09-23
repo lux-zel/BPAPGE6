@@ -1,4 +1,4 @@
 [project]
 name = "BPAPGE6"
 version = "1"
-dependencies = ["psycopg2"]
+dependencies = ["biopython", "psycopg2"]

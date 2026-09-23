@@ -1,5 +1,5 @@
 #dependencies:
-* Bio
+* Biopython
 * psycopg2
 * NCBI+
 * BLAST+
