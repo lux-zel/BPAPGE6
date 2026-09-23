@@ -23,21 +23,21 @@ def blast_pairwise(query, subject):
     hits (dictionary):  Een dictionary met de gevonden hits van de BLAST.
     
     """
-    
+
 
     project_dir = Path(__file__).parent
     subprocess.run(['bash', str(project_dir / 'blast.sh')], cwd=project_dir, check=True)
 
-    
-    
+
+
     hits = []
     with open(project_dir / 'hits.xml') as xml_file:
         records = Blast.parse(xml_file)
-
+    
     for record in records:
         for hit in record:
             for hsp in hit:
-                
+                    
                     hits.append({
                             
                             "evalue": hsp.expect,
@@ -52,5 +52,6 @@ def blast_pairwise(query, subject):
                             "query_seq": hsp.query,
                             "match": hsp.match,
                             "subject_seq": hsp.sbjct
+
                             })
     return hits
