@@ -24,3 +24,4 @@ except psycopg2.Error as error:
     if conn:
         conn.close()
         print('Connection closed')
+
