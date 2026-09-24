@@ -10,7 +10,7 @@ def main():
     
     query = sys.argv[1]
     subject = sys.argv[2]
-    
+
     blast_pairwise(query, subject)
 
 
