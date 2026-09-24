@@ -65,5 +65,4 @@ def blast_pairwise(query, subject):
                         "match": hsp.annotations["midline"],
                         "subject_seq": str(aligned_sequences[0].seq),
                     })
-    print(hits)
     return hits
