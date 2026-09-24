@@ -1,6 +1,7 @@
 import sys
 from blast import blast_pairwise
 from database_opzetten import database_opzetten
+from parser import download_uniprot, parse_uniprot
 
 def main():
 
