@@ -1,12 +1,5 @@
-#negeer alles
-*
-
-#behalve de volgende bestanden
-!.gitignore
-!*/src/*
-!README.md
-!*.py
-!*/data/*
-!*/output/*
-!pyproject.toml
-!*/src/parser.py
+src/data
+proteome_db*
+settings.json
+.DS_Store
+hits.xml

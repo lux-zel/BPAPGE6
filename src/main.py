@@ -1,6 +1,6 @@
 import sys
 from blast import blast_pairwise
-from database_opzetten import database_opzetten
+from parser import download_uniprot, parse_uniprot
 
 def main():
 
@@ -11,22 +11,15 @@ def main():
     query = sys.argv[1]
     subject = sys.argv[2]
 
+    print(f"Starten van BLAST pairwise met query: {query} en subject: {subject}")
     hits = blast_pairwise(query, subject)
-    database_opzetten()
 
     for hit in hits:
-        print("E-value:", hit["evalue"])
-        print("Bit score:", hit["bit-score"])
-        print("Identities:", hit["identities"])
-        print("Alignment length:", hit["align_length"])
-        print("Gaps:", hit["gaps"])
-        print("Query start:", hit["query_start"])
-        print("Query end:", hit["query_end"])
-        print("Subject start:", hit["subject_start"])
-        print("Subject end:", hit["subject_end"])
-        print("Match:", hit["match"])
-        print("Subject sequence:", hit["subject_seq"])
-        print()
+        print(f"\nUniprot begin download van: {hit['accession']}")
+        file = download_uniprot(hit['accession'])
+
+        print(f"Parsing van bestand: {file}")
+        parse_uniprot(file)
 
 
 if __name__ == '__main__':
