@@ -12,14 +12,16 @@ def main():
     subject = sys.argv[2]
 
     print(f"Starten van BLAST pairwise met query: {query} en subject: {subject}")
-    hits = blast_pairwise(query, subject)
+    data = blast_pairwise(query, subject)
 
-    for hit in hits:
+    for hit in data:
         print(f"\nUniprot begin download van: {hit['accession']}")
         file = download_uniprot(hit['accession'])
 
         print(f"Parsing van bestand: {file}")
-        parse_uniprot(file)
+        parse_uniprot(file, hit)
+
+    print(data)
 
 
 if __name__ == '__main__':

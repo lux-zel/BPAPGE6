@@ -6,7 +6,6 @@ Het gebruikt Biopython's wrapper rond de BLAST+ binaries.
 """
 
 import os
-import re
 import subprocess
 from pathlib import Path
 from Bio.Blast import NCBIXML
@@ -39,7 +38,7 @@ def blast_pairwise(query, subject):
         check=True
         )
 
-    hits = []
+    data = []
     with open('hits.xml', 'rb') as xml_file:
         records = NCBIXML.parse(xml_file)
 
@@ -47,7 +46,7 @@ def blast_pairwise(query, subject):
             for alignment in record.alignments:                
                 for hsp in alignment.hsps:
                     
-                    hits.append({
+                    data.append({
                         "accession": alignment.hit_def.split('|')[1],
                         "title": alignment.title,
                         "length": alignment.length,
@@ -66,4 +65,4 @@ def blast_pairwise(query, subject):
                         "match_midline": hsp.match,
                         "sbjct_seq": hsp.sbjct,
                     })
-    return hits
+    return data

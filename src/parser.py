@@ -10,59 +10,53 @@ OUPUT_DIR = Path("output")
 DATA_DIR.mkdir(exist_ok=True)
 OUPUT_DIR.mkdir(exist_ok=True)
 
-
 def download_uniprot(accession):
     url = f"https://rest.uniprot.org/uniprotkb/{accession}.txt"
     output_file = DATA_DIR / f"{accession}.txt"
 
     ssl_context = ssl.create_default_context(cafile=certifi.where())
 
-    with urlopen(url, context=ssl_context) as response:
-        with open(output_file, "wb") as file:  # wb = "write binary"
-            file.write(response.read())
-
-    print(f"{accession} is gedownload")
+    try:
+        with urlopen(url, context=ssl_context) as response:
+            with open(output_file, "wb") as file:
+                file.write(response.read())
+        print(f"{accession} is gedownload")
+    except Exception as e:
+        print(f"Error downloading {accession}: {e}")
+        return None
 
     return output_file
 
 
-def parse_uniprot(file_path):
+def parse_uniprot(file_path, hit):
     with open(file_path, encoding="utf-8") as handle:
         record = SwissProt.read(handle)
 
-        go_data = []
-        ensembl_ids = []
-        embl_ids = []
-        kegg_ids = []
-        gene_id = []
-
         for ref in record.cross_references:
             if ref[0] == "GeneID":
-                gene_id.append(ref[1])
+                hit.update({"gene_id": ref[1]})
             if ref[0] == "KEGG":
-                kegg_ids.append(ref[1])
-
+                hit.update({"kegg_ids": ref[1]})
             if ref[0] == "Ensembl":
-                ensembl_ids.append(ref[1])
-
+                hit.update({"ensembl_ids": ref[1]})
             elif ref[0] == "EMBL":
-                embl_ids.append(ref[1])
+                hit.update({"embl_ids": ref[1]})
 
             if ref[0] == "GO":
                 go_id = ref[1]
                 go_type, go_term = ref[2].split(':', 1)
-                go_data.append((go_id, go_term, go_type))
+                hit.update({"go_data": (go_id, go_term, go_type)})
 
-        if len(go_data) == 0:
+        if len(hit.get("go_data", [])) == 0:
             go_id = None
             go_type = None
             go_term = None
-            go_data.append((go_id, go_term, go_type))
-        if len(ensembl_ids) == 0:
-            ensembl_ids.append(None)
-        if len(embl_ids) == 0:
-            embl_ids.append(None)
-        if len(kegg_ids) == 0:
-            kegg_ids.append(None)
-        if len(gene_id) == 0:
-            gene_id.append(None)
+            hit.update({"go_data": (go_id, go_term, go_type)})
+        if len(hit.get("ensembl_ids", [])) == 0:
+            hit.update({"ensembl_ids": None})
+        if len(hit.get("embl_ids", [])) == 0:
+            hit.update({"embl_ids": None})
+        if len(hit.get("kegg_ids", [])) == 0:
+            hit.update({"kegg_ids": None})
+        if len(hit.get("gene_id", [])) == 0:
+            hit.update({"gene_id": None})
