@@ -7,10 +7,8 @@ Het gebruikt Biopython's wrapper rond de BLAST+ binaries.
 
 import os
 import subprocess
-from io import StringIO
 from pathlib import Path
-from Bio import Blast
-from Bio import SeqIO
+from Bio.Blast import NCBIXML
 
 def blast_pairwise(query, subject):
     """
@@ -27,43 +25,44 @@ def blast_pairwise(query, subject):
     """
 
     project_dir = Path(__file__).parent
+
     env = {
         **os.environ,
         "QUERY": str(Path(query).resolve()),
         "SUBJECT": str(Path(subject).resolve()),
     }
-    subprocess.run(
-        ['bash', str(project_dir / 'blast.sh')],
-        cwd=project_dir,
-        env=env,
-        check=True,
-    )
 
-    hits = []
-    with open(project_dir / 'hits.xml', 'rb') as xml_file:
-        records = Blast.parse(xml_file)
+    subprocess.run(
+        ['sh', str(project_dir / 'blast.sh')],
+        env=env, 
+        check=True
+        )
+
+    data = []
+    with open('hits.xml', 'rb') as xml_file:
+        records = NCBIXML.parse(xml_file)
+
         for record in records:
-            for hit in record:
-                for hsp in hit:
-                    counts = hsp.counts()
-                    query_start, query_end = hsp.coordinates[1, [0, -1]]
-                    subject_start, subject_end = hsp.coordinates[0, [0, -1]]
-                    aligned_sequences = list(
-                        SeqIO.parse(StringIO(hsp.format("fasta")), "fasta")
-                    )
-                    hits.append({
-                        "evalue": hsp.annotations["evalue"],
-                        "bit-score": hsp.annotations["bit score"],
-                        "identities": hsp.annotations["identity"],
-                        "align_length": counts.aligned,
-                        "gaps": counts.gaps,
-                        "query_start": int(query_start),
-                        "query_end": int(query_end),
-                        "subject_start": int(subject_start),
-                        "subject_end": int(subject_end),
-                        "query_seq": str(aligned_sequences[1].seq),
-                        "match": hsp.annotations["midline"],
-                        "subject_seq": str(aligned_sequences[0].seq),
+            for alignment in record.alignments:                
+                for hsp in alignment.hsps:
+                    
+                    data.append({
+                        "accession": alignment.hit_def.split('|')[1],
+                        "title": alignment.title,
+                        "length": alignment.length,
+                        "evalue": hsp.expect,
+                        "bit_score": hsp.bits,
+                        "score": hsp.score,
+                        "identities": hsp.identities,
+                        "positives": hsp.positives,
+                        "align_length": hsp.align_length,
+                        "gaps": hsp.gaps,
+                        "query_start": hsp.query_start,
+                        "query_end": hsp.query_end,
+                        "sbjct_start": hsp.sbjct_start,
+                        "sbjct_end": hsp.sbjct_end,
+                        "query_seq": hsp.query,
+                        "match_midline": hsp.match,
+                        "sbjct_seq": hsp.sbjct,
                     })
-    print(hits)
-    return hits
+    return data
