@@ -21,7 +21,7 @@ def blast_pairwise(query, subject):
     seq_type (string):  Het type allignment ("nucl" voor blastn, "prot" voor blastp).
     
     Returns:
-    hits (dictionary):  Een dictionary met de gevonden hits van de BLAST.
+    Een lijst met dictionaries, een dictionary per HSP.
     """
 
     project_dir = Path(__file__).parent
@@ -44,12 +44,21 @@ def blast_pairwise(query, subject):
 
         for record in records:
             for alignment in record.alignments:                
+                hit_parts = alignment.hit_def.split("|")
+                if len(hit_parts) >= 3:
+                    hit_accession = hit_parts[1]
+                else:
+                    hit_accession = hit_parts[0] if hit_parts else alignment.accession
+
                 for hsp in alignment.hsps:
-                    
                     data.append({
-                        "accession": alignment.hit_def.split('|')[1],
+                        "accession": hit_accession,
+                        "blast_id": alignment.hit_id,
                         "title": alignment.title,
                         "length": alignment.length,
+                        "query_id": record.query_id,
+                        "query_title": record.query,
+                        "query_length": record.query_length,
                         "evalue": hsp.expect,
                         "bit_score": hsp.bits,
                         "score": hsp.score,
@@ -59,10 +68,15 @@ def blast_pairwise(query, subject):
                         "gaps": hsp.gaps,
                         "query_start": hsp.query_start,
                         "query_end": hsp.query_end,
+                        "query_frame": hsp.frame[0] if hsp.frame else None,
                         "sbjct_start": hsp.sbjct_start,
                         "sbjct_end": hsp.sbjct_end,
+                        "sbjct_frame": hsp.frame[1] if hsp.frame else None,
                         "query_seq": hsp.query,
                         "match_midline": hsp.match,
                         "sbjct_seq": hsp.sbjct,
                     })
+    print(f"BLAST pairwise completed: {len(data)} HSP's gevonden.")
+    print(f"Start nu met het verrijken van de HSP's met annotaties van Uniprot, KEGG en NCBI Nucleotide. \
+          Dit kan even duren...")
     return data
