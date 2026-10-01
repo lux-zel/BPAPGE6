@@ -1,6 +1,8 @@
+import json
 import sys
+from pathlib import Path
 from blast import blast_pairwise
-from parser import download_uniprot, parse_uniprot
+from parser import enrich_hits
 
 def main():
 
@@ -12,16 +14,14 @@ def main():
     subject = sys.argv[2]
 
     print(f"Starten van BLAST pairwise met query: {query} en subject: {subject}")
-    data = blast_pairwise(query, subject)
+    data = enrich_hits(blast_pairwise(query, subject))
 
-    for hit in data:
-        print(f"\nUniprot begin download van: {hit['accession']}")
-        file = download_uniprot(hit['accession'])
+    output_file = Path(__file__).parent / "output" / "blast_results.json"
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    with output_file.open("w", encoding="utf-8") as handle:
+        json.dump(data, handle, indent=2)
 
-        print(f"Parsing van bestand: {file}")
-        parse_uniprot(file, hit)
-
-    print(data)
+    print(f"Finished: {len(data)} HSP's verwerkt en opgeslagen")
 
 
 if __name__ == '__main__':

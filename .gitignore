@@ -3,3 +3,5 @@ proteome_db*
 settings.json
 .DS_Store
 hits.xml
+output
+.vscode
