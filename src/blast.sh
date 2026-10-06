@@ -10,5 +10,5 @@ makeblastdb -in "$SUBJECT" -dbtype prot -out proteome_db
 echo 'Database gemaakt van het proteoom'
 
 echo "\nStart blastx met query: $QUERY"
-blastx -query "$QUERY" -db proteome_db -outfmt 5 -out hits.xml
+blastx -query "$QUERY" -db proteome_db -outfmt 5 -evalue 1e-5 -out hits.xml
 echo '\nBLAST uitgevoerd en resultaten opgeslagen in hits.xml'

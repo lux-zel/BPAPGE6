@@ -78,5 +78,5 @@ def blast_pairwise(query, subject):
                     })
     print(f"BLAST pairwise completed: {len(data)} HSP's gevonden.")
     print(f"Start nu met het verrijken van de HSP's met annotaties van Uniprot, KEGG en NCBI Nucleotide. \
-          Dit kan even duren...")
+          \nDit kan even duren...")
     return data

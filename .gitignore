@@ -5,3 +5,5 @@ settings.json
 hits.xml
 output
 .vscode
+.idea
+*/__pycache__/
