@@ -1,6 +1,7 @@
 import sys
 from blast import blast_pairwise
 from parser import enrich_hits
+from database_vullen import fill_database
 
 def main():
 
@@ -13,8 +14,9 @@ def main():
 
     print(f"Starten van BLAST pairwise met query: {query} en subject: {subject}")
     data = enrich_hits(blast_pairwise(query, subject))
+    opgeslagen = fill_database(data)
 
-    print(f"Finished: {len(data)} HSP's verwerkt en opgeslagen")
+    print(f"Finished: {opgeslagen} HSP's verwerkt en opgeslagen")
 
 
 if __name__ == '__main__':

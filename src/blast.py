@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 from Bio.Blast import NCBIXML
 
-def blast_pairwise(query, subject):
+def blast_pairwise(query: str, subject: str) -> list:
     """
     Deze function maakt gebruikt van Biopython's wrapper rond de BLAST+ binaries.
     Het voert een local paiwise BLAST uit met een locaal aangemaakte database.

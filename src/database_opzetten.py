@@ -1,40 +1,19 @@
+import os
+
 import psycopg2
 
 def database_opzetten():
     """
     Deze functie maakt een connectie met de database en maakt de tabellen aan.
     """
+    conn_string = os.environ.get("DATABASE_URL")
+    if not conn_string:
+        raise RuntimeError("Set the DATABASE_URL environment variable first.")
 
-    conn_string = """
-    host='145.97.18.240' dbname='bpapge6_db'
-    user='bpapge6' password='bpapge6'
-    """
-
-    conn = None
-    cursor = None
-
+    conn = psycopg2.connect(conn_string)
     try:
-        conn = psycopg2.connect(conn_string)
-        print('Connection open')
-        cursor = conn.cursor()
-
-    except psycopg2.Error as error:
-        print("Error", error)
-
-        if cursor:
-            cursor.close()
-
-        if conn:
-            conn.close()
-            print('Connection closed')
-
-    try:
-         # Alle tabellen verwijderen
+        with conn.cursor() as cursor:
             tabellen_verwijderen(cursor)
-        
-            # File inlezen
-        
-            # Alle tabellen weer opnieuw aanmaken
             tabellen = [
                 gen_aanmaken(),
                 functie_aanmaken(),
@@ -42,28 +21,17 @@ def database_opzetten():
                 isomeer_aanmaken(),
                 eiwit_aanmaken(),
                 eiwit_functie_aanmaken(),
-                eiwit_pathway_aanmaken()
+                eiwit_pathway_aanmaken(),
+                blast_hsp_aanmaken(),
             ]
-        
             for tabel in tabellen:
                 cursor.execute(tabel)
-        
-            # Tabel vullen:
-        
-            # Connectie sluiten
-            conn.commit()
-            conn.close()
-            print('Connection closed')
-
-    except Exception as error:
-        print("Error", error)
-
-        if cursor:
-            cursor.close()
-
-        if conn:
-            conn.close()
-            print('Connection closed')
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def tabellen_verwijderen(cursor):
@@ -74,7 +42,8 @@ def tabellen_verwijderen(cursor):
         "Isomeer",
         "Eiwit",
         "Eiwit_Functie",
-        "Eiwit_Pathway"
+        "Eiwit_Pathway",
+        "Blast_HSP",
     ]
 
     for verwijder_tabel in verwijder:
@@ -96,16 +65,16 @@ def gen_aanmaken():
 def functie_aanmaken():
     return """CREATE TABLE IF NOT EXISTS Functie (
         Go_ID VARCHAR(50) PRIMARY KEY,
-        Go_Term VARCHAR(50),
-        Beschrijving TEXT
+        Go_Term TEXT,
+        Go_Type VARCHAR(50)
     )"""
 
 
 def pathway_aanmaken():
     return """CREATE TABLE IF NOT EXISTS Pathway (
         Pathway_Kegg_ID VARCHAR(50) PRIMARY KEY,
-        Naam VARCHAR(50),
-        Type_Pathway VARCHAR(50),
+        Naam TEXT,
+        Type_Pathway TEXT,
         Beschrijving TEXT
     )"""
 
@@ -125,9 +94,9 @@ def isomeer_aanmaken():
 def eiwit_aanmaken():
     return """CREATE TABLE IF NOT EXISTS Eiwit (
         ID SERIAL PRIMARY KEY, 
-        Eiwit_ID VARCHAR(50),
+        Eiwit_ID VARCHAR(50) UNIQUE,
         Gen_ID VARCHAR(50),
-        Naam VARCHAR(50),
+        Naam TEXT,
         Aminozuursequentie TEXT,
         FOREIGN KEY (Gen_ID)
             REFERENCES Gen(Gen_ID)
@@ -157,3 +126,37 @@ def eiwit_pathway_aanmaken():
             REFERENCES Pathway(Pathway_Kegg_ID)
     )"""
 
+
+def blast_hsp_aanmaken():
+    return """CREATE TABLE IF NOT EXISTS Blast_HSP (
+        ID SERIAL PRIMARY KEY,
+        Eiwit_ID INT NOT NULL,
+        Blast_ID TEXT,
+        Title TEXT,
+        Length INT,
+        Query_ID TEXT,
+        Query_Title TEXT,
+        Query_Length INT,
+        Evalue DOUBLE PRECISION,
+        Bit_Score DOUBLE PRECISION,
+        Score DOUBLE PRECISION,
+        Identities INT,
+        Positives INT,
+        Align_Length INT,
+        Gaps INT,
+        Query_Start INT,
+        Query_End INT,
+        Query_Frame INT,
+        Sbjct_Start INT,
+        Sbjct_End INT,
+        Sbjct_Frame INT,
+        Query_Seq TEXT,
+        Match_Midline TEXT,
+        Sbjct_Seq TEXT,
+        FOREIGN KEY (Eiwit_ID)
+            REFERENCES Eiwit(ID)
+    )"""
+
+
+if __name__ == "__main__":
+    database_opzetten()

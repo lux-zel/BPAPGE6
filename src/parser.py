@@ -8,7 +8,7 @@ import ssl
 
 DATA_DIR = Path("data")
 
-def _download_file(url, output_file):
+def _download_file(url: str, output_file: Path) -> Path | None:
     output_file.parent.mkdir(parents=True, exist_ok=True)
     if output_file.is_file():
         return output_file
@@ -29,23 +29,23 @@ def _download_file(url, output_file):
     return output_file
 
 
-def download_uniprot(accession):
+def download_uniprot(accession: str) -> Path | None:
     url = f"https://rest.uniprot.org/uniprotkb/{quote(accession, safe='')}.txt"
     return _download_file(url, DATA_DIR / f"{accession}.txt")
 
 
-def download_kegg(kegg_id):
+def download_kegg(kegg_id: str) -> Path | None:
     url = f"https://rest.kegg.jp/get/{quote(kegg_id, safe=':')}"
     filename = kegg_id.replace(":", "_")
     return _download_file(url, DATA_DIR / "kegg" / f"{filename}.txt")
 
 
-def download_nucleotide(accession):
+def download_nucleotide(accession: str) -> Path | None:
     url = f"https://www.ebi.ac.uk/ena/browser/api/fasta/{quote(accession, safe='')}"
     return _download_file(url, DATA_DIR / "nucleotide" / f"{accession}.fasta")
 
 
-def parse_uniprot(file_path):
+def parse_uniprot(file_path: Path) -> dict:
     annotations = {
         "uniprot_entry_name": None,
         "uniprot_accessions": [],
@@ -97,7 +97,7 @@ def parse_uniprot(file_path):
     return annotations
 
 
-def parse_kegg(file_path):
+def parse_kegg(file_path: Path) -> dict:
     fields = {}
     current_field = None
 
@@ -114,7 +114,7 @@ def parse_kegg(file_path):
     return fields
 
 
-def parse_nucleotide(file_path):
+def parse_nucleotide(file_path: Path) -> list:
     with open(file_path, encoding="utf-8") as handle:
         return [
             {
@@ -126,7 +126,7 @@ def parse_nucleotide(file_path):
         ]
 
 
-def enrich_hits(hits):
+def enrich_hits(hits: list) -> list:
     uniprot_annotations = {}
     kegg_entries = {}
     nucleotide_records = {}
