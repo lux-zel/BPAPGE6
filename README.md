@@ -4,18 +4,18 @@
 * NCBI+     (on path)
 * BLAST+    (on path)
 
-Run the search from `src`:
+Run the application from `src`. It will initialize any missing database tables
+without deleting existing data, and prompt for the database password once.
+Connect to the required VPN before running it.
 
 ```sh
-export DATABASE_URL='postgresql://USER:PASSWORD@HOST:5432/DATABASE'
-python3 database_opzetten.py
 python3 main.py seq.fasta proteome.fasta
 ```
 
-`database_opzetten.py` creates the tables and drops any existing project tables
-first, so run it only when initializing or intentionally resetting the database.
-`main.py` stores the BLAST HSPs and their parsed protein, GO, and KEGG
-annotations in that database.
+`main.py` stores each complete BLAST hit, including its alignment and parsed
+annotations, in a JSONB list on the matched protein. There is no BLAST HSP
+table. HSPs describe aligned regions, not transcript isoforms, so the
+application does not create isomer rows.
 
 UniProt records and any referenced KEGG entries and ENA nucleotide records are
 downloaded and parsed automatically. ENA records are genomic contigs, not

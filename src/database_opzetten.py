@@ -1,20 +1,11 @@
-import os
+from database_connectie import maak_database_connectie
 
-import psycopg2
 
-def database_opzetten():
-    """
-    Deze functie maakt een connectie met de database en maakt de tabellen aan.
-    """
-    conn_string = os.environ.get("DATABASE_URL")
-    if not conn_string:
-        raise RuntimeError("Set the DATABASE_URL environment variable first.")
-
-    conn = psycopg2.connect(conn_string)
-    try:
+def database_opzetten(conn):
+    """Maak ontbrekende tabellen aan zonder bestaande tabellen te verwijderen."""
+    with conn:
         with conn.cursor() as cursor:
-            tabellen_verwijderen(cursor)
-            tabellen = [
+            for tabel in (
                 gen_aanmaken(),
                 functie_aanmaken(),
                 pathway_aanmaken(),
@@ -22,32 +13,13 @@ def database_opzetten():
                 eiwit_aanmaken(),
                 eiwit_functie_aanmaken(),
                 eiwit_pathway_aanmaken(),
-                blast_hsp_aanmaken(),
-            ]
-            for tabel in tabellen:
+            ):
                 cursor.execute(tabel)
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
-
-
-def tabellen_verwijderen(cursor):
-    verwijder = [
-        "Gen",
-        "Functie",
-        "Pathway",
-        "Isomeer",
-        "Eiwit",
-        "Eiwit_Functie",
-        "Eiwit_Pathway",
-        "Blast_HSP",
-    ]
-
-    for verwijder_tabel in verwijder:
-        cursor.execute(f"DROP TABLE IF EXISTS {verwijder_tabel} CASCADE")
+            cursor.execute(
+                "ALTER TABLE eiwit ADD COLUMN IF NOT EXISTS hit_data "
+                "JSONB NOT NULL DEFAULT '[]'::jsonb"
+            )
+            cursor.execute("DROP TABLE IF EXISTS blast_hsp")
 
 
 def gen_aanmaken():
@@ -98,6 +70,7 @@ def eiwit_aanmaken():
         Gen_ID VARCHAR(50),
         Naam TEXT,
         Aminozuursequentie TEXT,
+        Hit_Data JSONB NOT NULL DEFAULT '[]'::jsonb,
         FOREIGN KEY (Gen_ID)
             REFERENCES Gen(Gen_ID)
     )"""
@@ -127,36 +100,9 @@ def eiwit_pathway_aanmaken():
     )"""
 
 
-def blast_hsp_aanmaken():
-    return """CREATE TABLE IF NOT EXISTS Blast_HSP (
-        ID SERIAL PRIMARY KEY,
-        Eiwit_ID INT NOT NULL,
-        Blast_ID TEXT,
-        Title TEXT,
-        Length INT,
-        Query_ID TEXT,
-        Query_Title TEXT,
-        Query_Length INT,
-        Evalue DOUBLE PRECISION,
-        Bit_Score DOUBLE PRECISION,
-        Score DOUBLE PRECISION,
-        Identities INT,
-        Positives INT,
-        Align_Length INT,
-        Gaps INT,
-        Query_Start INT,
-        Query_End INT,
-        Query_Frame INT,
-        Sbjct_Start INT,
-        Sbjct_End INT,
-        Sbjct_Frame INT,
-        Query_Seq TEXT,
-        Match_Midline TEXT,
-        Sbjct_Seq TEXT,
-        FOREIGN KEY (Eiwit_ID)
-            REFERENCES Eiwit(ID)
-    )"""
-
-
 if __name__ == "__main__":
-    database_opzetten()
+    conn = maak_database_connectie()
+    try:
+        database_opzetten(conn)
+    finally:
+        conn.close()

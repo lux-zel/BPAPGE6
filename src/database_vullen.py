@@ -1,44 +1,23 @@
 
-import os
-from collections.abc import Iterable, Mapping
-from typing import Any
-
-import psycopg2
+from psycopg2.extras import Json
 
 
-def fill_database(data: Iterable[Mapping[str, Any]]) -> int:
-    """Voert de BLAST HSPs en de ge-associeerde protein annotations in de database.
-
-    De database connection is geconfigureerd door de ``DATABASE_URL``
-    environment variable. Alle records zijn geschreven in één transactie.
-    """
-    conn_string = os.environ.get("DATABASE_URL")
-    if not conn_string:
-        raise RuntimeError("Zet deDATABASE_URL environment variable eerst.")
-
-    conn = psycopg2.connect(conn_string)
+def fill_database(data, conn):
+    """Bewaar BLAST-hits en annotaties in de database."""
     inserted = 0
-    try:
+    with conn:
         with conn.cursor() as cursor:
             for hit in data:
                 protein_id = _store_protein(hit, cursor)
                 _store_go_data(hit, protein_id, cursor)
                 _store_pathways(hit, protein_id, cursor)
-                _store_hsp(hit, protein_id, cursor)
                 inserted += 1
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
-
     return inserted
 
 
-def _store_protein(hit: Mapping[str, Any], cursor: Any) -> int:
+def _store_protein(hit, cursor):
     gene_ids = hit.get("gene_id") or []
-    gene_id = next((value for value in gene_ids if value), None)
+    gene_id = gene_ids[0] if gene_ids else None
 
     if gene_id is not None:
         cursor.execute(
@@ -48,14 +27,17 @@ def _store_protein(hit: Mapping[str, Any], cursor: Any) -> int:
 
     cursor.execute(
         """
-        INSERT INTO eiwit (eiwit_id, gen_id, naam, aminozuursequentie)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO eiwit (
+            eiwit_id, gen_id, naam, aminozuursequentie, hit_data
+        )
+        VALUES (%s, %s, %s, %s, %s)
         ON CONFLICT (eiwit_id) DO UPDATE SET
             gen_id = COALESCE(EXCLUDED.gen_id, eiwit.gen_id),
             naam = COALESCE(EXCLUDED.naam, eiwit.naam),
             aminozuursequentie = COALESCE(
                 EXCLUDED.aminozuursequentie, eiwit.aminozuursequentie
-            )
+            ),
+            hit_data = eiwit.hit_data || EXCLUDED.hit_data
         RETURNING id
         """,
         (
@@ -63,15 +45,13 @@ def _store_protein(hit: Mapping[str, Any], cursor: Any) -> int:
             gene_id,
             hit.get("uniprot_entry_name"),
             hit.get("uniprot_sequence"),
+            Json([dict(hit)]),
         ),
     )
-    row = cursor.fetchone()
-    if row is None:
-        raise RuntimeError(f"Could not retrieve database ID for {hit['accession']}.")
-    return row[0]
+    return cursor.fetchone()[0]
 
 
-def _store_go_data(hit: Mapping[str, Any], protein_id: int, cursor: Any) -> None:
+def _store_go_data(hit, protein_id, cursor):
     for go_id, go_term, go_type in hit.get("go_data") or []:
         cursor.execute(
             """
@@ -93,13 +73,11 @@ def _store_go_data(hit: Mapping[str, Any], protein_id: int, cursor: Any) -> None
         )
 
 
-def _first_value(value: Any) -> Any:
-    if isinstance(value, (list, tuple)):
-        return value[0] if value else None
-    return value
+def _first_value(value):
+    return value[0] if value else None
 
 
-def _store_pathways(hit: Mapping[str, Any], protein_id: int, cursor: Any) -> None:
+def _store_pathways(hit, protein_id, cursor):
     kegg_data = hit.get("kegg_data") or {}
     for kegg_id in hit.get("kegg_ids") or []:
         pathway = kegg_data.get(kegg_id) or {}
@@ -129,46 +107,3 @@ def _store_pathways(hit: Mapping[str, Any], protein_id: int, cursor: Any) -> Non
             """,
             (protein_id, kegg_id),
         )
-
-
-def _store_hsp(hit: Mapping[str, Any], protein_id: int, cursor: Any) -> None:
-    cursor.execute(
-        """
-        INSERT INTO blast_hsp (
-            eiwit_id, blast_id, title, length, query_id, query_title,
-            query_length, evalue, bit_score, score, identities, positives,
-            align_length, gaps, query_start, query_end, query_frame,
-            sbjct_start, sbjct_end, sbjct_frame, query_seq, match_midline,
-            sbjct_seq
-        )
-        VALUES (
-            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-            %s, %s, %s, %s, %s, %s, %s, %s
-        )
-        """,
-        (
-            protein_id,
-            hit["blast_id"],
-            hit["title"],
-            hit["length"],
-            hit["query_id"],
-            hit["query_title"],
-            hit["query_length"],
-            hit["evalue"],
-            hit["bit_score"],
-            hit["score"],
-            hit["identities"],
-            hit["positives"],
-            hit["align_length"],
-            hit["gaps"],
-            hit["query_start"],
-            hit["query_end"],
-            hit["query_frame"],
-            hit["sbjct_start"],
-            hit["sbjct_end"],
-            hit["sbjct_frame"],
-            hit["query_seq"],
-            hit["match_midline"],
-            hit["sbjct_seq"],
-        ),
-    )
