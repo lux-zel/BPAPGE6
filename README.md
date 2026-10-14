@@ -4,19 +4,25 @@
 * NCBI+     (on path)
 * BLAST+    (on path)
 
-Run the application from `src`. It will initialize any missing database tables
-without deleting existing data, and prompt for the database password once.
+Run the application from `src`. Each run replaces the application's database
+tables with empty tables, permanently deleting data from previous runs. Other
+database tables are left untouched. The application prompts for the database
+password once.
 Connect to the required VPN before running it.
 
 ```sh
 python3 main.py seq.fasta proteome.fasta
 ```
 
-`main.py` stores each complete BLAST hit, including its alignment and parsed
-annotations, in a JSONB list on the matched protein. There is no BLAST HSP
-table. HSPs describe aligned regions, not transcript isoforms, so the
-application does not create isomer rows.
+`main.py` stores one BLAST HSP per protein in the existing `Eiwit` table,
+choosing the HSP with the highest bit score (and lowest e-value to break ties).
+Transcript isoforms are stored separately in `Isomeer` when ENA
+provides annotated mRNA features. The stored transcript sequence is spliced
+according to the annotated exon locations. Coding status is based on whether a
+CDS feature exists for the same locus tag. This captures annotated transcripts
+in the downloaded records, not necessarily every biological splice variant.
 
-UniProt records and any referenced KEGG entries and ENA nucleotide records are
-downloaded and parsed automatically. ENA records are genomic contigs, not
-necessarily gene-only sequences.
+UniProt gene names and locus tags are stored in `Gen`. Annotated ENA EMBL
+records are matched using their protein IDs to add each gene's nucleotide
+sequence, coordinates, strand, and product description when available. ENA
+records are genomic contigs, not necessarily gene-only sequences.

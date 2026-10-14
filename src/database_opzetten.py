@@ -2,9 +2,21 @@ from database_connectie import maak_database_connectie
 
 
 def database_opzetten(conn):
-    """Maak ontbrekende tabellen aan zonder bestaande tabellen te verwijderen."""
+    """Vervang de applicatietabellen door een lege database-indeling."""
     with conn:
         with conn.cursor() as cursor:
+            for tabel in (
+                "eiwit_functie",
+                "eiwit_pathway",
+                "blast_hsp",
+                "isomeer",
+                "eiwit",
+                "functie",
+                "pathway",
+                "gen",
+            ):
+                cursor.execute(f"DROP TABLE IF EXISTS {tabel}")
+
             for tabel in (
                 gen_aanmaken(),
                 functie_aanmaken(),
@@ -15,17 +27,11 @@ def database_opzetten(conn):
                 eiwit_pathway_aanmaken(),
             ):
                 cursor.execute(tabel)
-            cursor.execute(
-                "ALTER TABLE eiwit ADD COLUMN IF NOT EXISTS hit_data "
-                "JSONB NOT NULL DEFAULT '[]'::jsonb"
-            )
-            cursor.execute("DROP TABLE IF EXISTS blast_hsp")
 
 
 def gen_aanmaken():
     return """CREATE TABLE IF NOT EXISTS Gen (
         Gen_ID VARCHAR(50) PRIMARY KEY,
-        Naam VARCHAR(50),
         Sequentie TEXT,
         Startpositie INT,
         Eindpositie INT,
@@ -53,10 +59,10 @@ def pathway_aanmaken():
 
 def isomeer_aanmaken():
     return """CREATE TABLE IF NOT EXISTS Isomeer (
-        Isomeer_ID VARCHAR(50) PRIMARY KEY,
+        Isomeer_ID TEXT PRIMARY KEY,
         Gen_ID VARCHAR(50),
         Sequentie TEXT,
-        Splicings_variant VARCHAR(50),
+        Splicings_variant TEXT,
         Codeert BOOLEAN,
         FOREIGN KEY (Gen_ID)
             REFERENCES Gen(Gen_ID)
@@ -65,12 +71,34 @@ def isomeer_aanmaken():
 
 def eiwit_aanmaken():
     return """CREATE TABLE IF NOT EXISTS Eiwit (
-        ID SERIAL PRIMARY KEY, 
-        Eiwit_ID VARCHAR(50) UNIQUE,
+        ID SERIAL PRIMARY KEY,
+        Eiwit_ID VARCHAR(50),
         Gen_ID VARCHAR(50),
         Naam TEXT,
+        Uniprot_Beschrijving TEXT,
+        Uniprot_Organisme TEXT,
         Aminozuursequentie TEXT,
-        Hit_Data JSONB NOT NULL DEFAULT '[]'::jsonb,
+        Blast_ID TEXT,
+        Onderwerp_lengte INT,
+        Query_ID TEXT,
+        Query_titel TEXT,
+        Query_lengte INT,
+        Evalue DOUBLE PRECISION,
+        Bit_score DOUBLE PRECISION,
+        Score INT,
+        Identiteiten INT,
+        Positieven INT,
+        Uitlijningslengte INT,
+        Gaten INT,
+        Query_start INT,
+        Query_eind INT,
+        Query_frame INT,
+        Onderwerp_start INT,
+        Onderwerp_eind INT,
+        Onderwerp_frame INT,
+        Query_sequentie TEXT,
+        Match_midline TEXT,
+        Onderwerp_sequentie TEXT,
         FOREIGN KEY (Gen_ID)
             REFERENCES Gen(Gen_ID)
     )"""
