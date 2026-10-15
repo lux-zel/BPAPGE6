@@ -1,20 +1,23 @@
-import os
+from database_connectie import maak_database_connectie
 
-import psycopg2
 
-def database_opzetten():
-    """
-    Deze functie maakt een connectie met de database en maakt de tabellen aan.
-    """
-    conn_string = os.environ.get("DATABASE_URL")
-    if not conn_string:
-        raise RuntimeError("Set the DATABASE_URL environment variable first.")
-
-    conn = psycopg2.connect(conn_string)
-    try:
+def database_opzetten(conn):
+    """Vervang de applicatietabellen door een lege database-indeling."""
+    with conn:
         with conn.cursor() as cursor:
-            tabellen_verwijderen(cursor)
-            tabellen = [
+            for tabel in (
+                "eiwit_functie",
+                "eiwit_pathway",
+                "blast_hsp",
+                "isomeer",
+                "eiwit",
+                "functie",
+                "pathway",
+                "gen",
+            ):
+                cursor.execute(f"DROP TABLE IF EXISTS {tabel}")
+
+            for tabel in (
                 gen_aanmaken(),
                 functie_aanmaken(),
                 pathway_aanmaken(),
@@ -22,6 +25,7 @@ def database_opzetten():
                 eiwit_aanmaken(),
                 eiwit_functie_aanmaken(),
                 eiwit_pathway_aanmaken(),
+<<<<<<< HEAD
             ]
             for tabel in tabellen:
                 cursor.execute(tabel)
@@ -46,14 +50,21 @@ def tabellen_verwijderen(cursor):
 
     for verwijder_tabel in verwijder:
         cursor.execute(f"DROP TABLE IF EXISTS {verwijder_tabel} CASCADE")
+=======
+            ):
+                cursor.execute(tabel)
+>>>>>>> 8e189f3616bbdb02b9f56e4dfcf851b284346df0
 
 
 def gen_aanmaken():
     return """CREATE TABLE IF NOT EXISTS Gen (
         Gen_ID VARCHAR(50) PRIMARY KEY,
+<<<<<<< HEAD
         Naam TEXT,
         Organisme TEXT,
         Ensembl_IDs TEXT[] NOT NULL DEFAULT '{}',
+=======
+>>>>>>> 8e189f3616bbdb02b9f56e4dfcf851b284346df0
         Sequentie TEXT,
         Startpositie INT,
         Eindpositie INT,
@@ -81,10 +92,10 @@ def pathway_aanmaken():
 
 def isomeer_aanmaken():
     return """CREATE TABLE IF NOT EXISTS Isomeer (
-        Isomeer_ID VARCHAR(50) PRIMARY KEY,
+        Isomeer_ID TEXT PRIMARY KEY,
         Gen_ID VARCHAR(50),
         Sequentie TEXT,
-        Splicings_variant VARCHAR(50),
+        Splicings_variant TEXT,
         Codeert BOOLEAN,
         FOREIGN KEY (Gen_ID)
             REFERENCES Gen(Gen_ID)
@@ -93,11 +104,34 @@ def isomeer_aanmaken():
 
 def eiwit_aanmaken():
     return """CREATE TABLE IF NOT EXISTS Eiwit (
-        ID SERIAL PRIMARY KEY, 
-        Eiwit_ID VARCHAR(50) UNIQUE,
+        ID SERIAL PRIMARY KEY,
+        Eiwit_ID VARCHAR(50),
         Gen_ID VARCHAR(50),
         Naam TEXT,
+        Uniprot_Beschrijving TEXT,
+        Uniprot_Organisme TEXT,
         Aminozuursequentie TEXT,
+        Blast_ID TEXT,
+        Onderwerp_lengte INT,
+        Query_ID TEXT,
+        Query_titel TEXT,
+        Query_lengte INT,
+        Evalue DOUBLE PRECISION,
+        Bit_score DOUBLE PRECISION,
+        Score INT,
+        Identiteiten INT,
+        Positieven INT,
+        Uitlijningslengte INT,
+        Gaten INT,
+        Query_start INT,
+        Query_eind INT,
+        Query_frame INT,
+        Onderwerp_start INT,
+        Onderwerp_eind INT,
+        Onderwerp_frame INT,
+        Query_sequentie TEXT,
+        Match_midline TEXT,
+        Onderwerp_sequentie TEXT,
         FOREIGN KEY (Gen_ID)
             REFERENCES Gen(Gen_ID)
     )"""
@@ -128,4 +162,8 @@ def eiwit_pathway_aanmaken():
 
 
 if __name__ == "__main__":
-    database_opzetten()
+    conn = maak_database_connectie()
+    try:
+        database_opzetten(conn)
+    finally:
+        conn.close()

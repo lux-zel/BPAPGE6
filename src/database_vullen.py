@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 import os
 
@@ -15,25 +16,28 @@ def fill_database(data):
         raise RuntimeError("Zet de DATABASE_URL environment variable eerst.")
 
     conn = psycopg2.connect(conn_string)
+=======
+def fill_database(data, conn):
+    """Bewaar de beste BLAST-hit per eiwit en de bijbehorende annotaties."""
+>>>>>>> 8e189f3616bbdb02b9f56e4dfcf851b284346df0
     inserted = 0
-    try:
+    with conn:
         with conn.cursor() as cursor:
+<<<<<<< HEAD
             for hit in data:
                 gene_id = _store_gene(hit, cursor)
                 protein_id = _store_protein(hit, gene_id, cursor)
+=======
+            for hit in _best_hsp_per_protein(data):
+                protein_id = _store_protein(hit, cursor)
+>>>>>>> 8e189f3616bbdb02b9f56e4dfcf851b284346df0
                 _store_go_data(hit, protein_id, cursor)
                 _store_pathways(hit, protein_id, cursor)
                 inserted += 1
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
-
     return inserted
 
 
+<<<<<<< HEAD
 def _store_gene(hit, cursor):
     gene_ids = hit.get("gene_id") or []
     gene_id = next((value for value in gene_ids if value), None)
@@ -59,34 +63,138 @@ def _store_gene(hit, cursor):
         ),
     )
     return gene_id
+=======
+def _best_hsp_per_protein(data):
+    best_hits = {}
+    for hit in data:
+        accession = hit["accession"]
+        current = best_hits.get(accession)
+        if current is None or (hit["bit_score"], -hit["evalue"]) > (
+            current["bit_score"], -current["evalue"]
+        ):
+            best_hits[accession] = hit
+    return best_hits.values()
+
+
+def _store_protein(hit, cursor):
+    gene_ids = hit.get("gene_id") or []
+    gene_data = hit.get("gene_data") or {}
+    gene_id = (
+        (gene_ids[0] if gene_ids else None)
+        or hit.get("gene_locus_tag")
+        or gene_data.get("locus_tag")
+    )
+
+    if gene_id is not None:
+        cursor.execute(
+            """
+            INSERT INTO gen (
+                gen_id, sequentie, startpositie, eindpositie, beschrijving, strand
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (gen_id) DO UPDATE SET
+                sequentie = COALESCE(EXCLUDED.sequentie, gen.sequentie),
+                startpositie = COALESCE(EXCLUDED.startpositie, gen.startpositie),
+                eindpositie = COALESCE(EXCLUDED.eindpositie, gen.eindpositie),
+                beschrijving = COALESCE(EXCLUDED.beschrijving, gen.beschrijving),
+                strand = COALESCE(EXCLUDED.strand, gen.strand)
+            """,
+            (
+                gene_id,
+                gene_data.get("sequence"),
+                gene_data.get("start"),
+                gene_data.get("end"),
+                gene_data.get("description") or hit.get("uniprot_description"),
+                gene_data.get("strand"),
+            ),
+        )
+        _store_isomers(hit, gene_id, cursor)
+>>>>>>> 8e189f3616bbdb02b9f56e4dfcf851b284346df0
 
 
 def _store_protein(hit, gene_id, cursor):
     cursor.execute(
         """
-        INSERT INTO eiwit (eiwit_id, gen_id, naam, aminozuursequentie)
-        VALUES (%s, %s, %s, %s)
-        ON CONFLICT (eiwit_id) DO UPDATE SET
-            gen_id = COALESCE(EXCLUDED.gen_id, eiwit.gen_id),
-            naam = COALESCE(EXCLUDED.naam, eiwit.naam),
-            aminozuursequentie = COALESCE(
-                EXCLUDED.aminozuursequentie, eiwit.aminozuursequentie
-            )
+        INSERT INTO eiwit (
+            eiwit_id, gen_id, naam, uniprot_beschrijving,
+            uniprot_organisme, aminozuursequentie, blast_id,
+            onderwerp_lengte, query_id, query_titel, query_lengte, evalue,
+            bit_score, score, identiteiten, positieven, uitlijningslengte,
+            gaten, query_start, query_eind, query_frame, onderwerp_start,
+            onderwerp_eind, onderwerp_frame, query_sequentie, match_midline,
+            onderwerp_sequentie
+        )
+        VALUES (
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+        )
         RETURNING id
         """,
         (
             hit["accession"],
             gene_id,
             hit.get("uniprot_entry_name"),
+            hit.get("uniprot_description"),
+            hit.get("uniprot_organism"),
             hit.get("uniprot_sequence"),
+            hit.get("blast_id"),
+            hit.get("length"),
+            hit.get("query_id"),
+            hit.get("query_title"),
+            hit.get("query_length"),
+            hit.get("evalue"),
+            hit.get("bit_score"),
+            hit.get("score"),
+            hit.get("identities"),
+            hit.get("positives"),
+            hit.get("align_length"),
+            hit.get("gaps"),
+            hit.get("query_start"),
+            hit.get("query_end"),
+            hit.get("query_frame"),
+            hit.get("sbjct_start"),
+            hit.get("sbjct_end"),
+            hit.get("sbjct_frame"),
+            hit.get("query_seq"),
+            hit.get("match_midline"),
+            hit.get("sbjct_seq"),
         ),
     )
-    row = cursor.fetchone()
-    if row is None:
-        raise RuntimeError(f"Could not retrieve database ID for {hit['accession']}.")
-    return row[0]
+    return cursor.fetchone()[0]
 
 
+<<<<<<< HEAD
+=======
+def _store_isomers(hit, gene_id, cursor):
+    if gene_id is None:
+        return
+
+    for isomer in hit.get("isomers") or []:
+        cursor.execute(
+            """
+            INSERT INTO isomeer (
+                isomeer_id, gen_id, sequentie, splicings_variant, codeert
+            )
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (isomeer_id) DO UPDATE SET
+                gen_id = EXCLUDED.gen_id,
+                sequentie = COALESCE(EXCLUDED.sequentie, isomeer.sequentie),
+                splicings_variant = COALESCE(
+                    EXCLUDED.splicings_variant, isomeer.splicings_variant
+                ),
+                codeert = COALESCE(EXCLUDED.codeert, isomeer.codeert)
+            """,
+            (
+                isomer["isomer_id"],
+                gene_id,
+                isomer.get("sequence"),
+                isomer.get("splicing_variant"),
+                isomer.get("codes"),
+            ),
+        )
+
+
+>>>>>>> 8e189f3616bbdb02b9f56e4dfcf851b284346df0
 def _store_go_data(hit, protein_id, cursor):
     for go_id, go_term, go_type in hit.get("go_data") or []:
         cursor.execute(
@@ -110,9 +218,13 @@ def _store_go_data(hit, protein_id, cursor):
 
 
 def _first_value(value):
+<<<<<<< HEAD
     if isinstance(value, (list, tuple)):
         return value[0] if value else None
     return value
+=======
+    return value[0] if value else None
+>>>>>>> 8e189f3616bbdb02b9f56e4dfcf851b284346df0
 
 
 def _store_pathways(hit, protein_id, cursor):
