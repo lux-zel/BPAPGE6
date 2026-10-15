@@ -14,8 +14,11 @@ python3 main.py seq.fasta proteome.fasta
 
 `database_opzetten.py` creates the tables and drops any existing project tables
 first, so run it only when initializing or intentionally resetting the database.
-`main.py` stores the BLAST HSPs and their parsed protein, GO, and KEGG
-annotations in that database.
+The `Gen` table stores the NCBI Gene ID, gene name, organism, and Ensembl IDs
+available from UniProt records. Gene nucleotide sequence, genomic coordinates,
+strand, and gene-specific description are not supplied by the current inputs,
+so those columns remain empty. Protein, GO, and KEGG annotations are stored in
+their respective tables.
 
 UniProt records and any referenced KEGG entries and ENA nucleotide records are
 downloaded and parsed automatically. ENA records are genomic contigs, not

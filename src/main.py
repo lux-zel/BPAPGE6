@@ -16,7 +16,7 @@ def main():
     data = enrich_hits(blast_pairwise(query, subject))
     opgeslagen = fill_database(data)
 
-    print(f"Finished: {opgeslagen} HSP's verwerkt en opgeslagen")
+    print(f"Finished: {opgeslagen} records verwerkt en opgeslagen")
 
 
 if __name__ == '__main__':

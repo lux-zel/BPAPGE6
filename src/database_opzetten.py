@@ -22,7 +22,6 @@ def database_opzetten():
                 eiwit_aanmaken(),
                 eiwit_functie_aanmaken(),
                 eiwit_pathway_aanmaken(),
-                blast_hsp_aanmaken(),
             ]
             for tabel in tabellen:
                 cursor.execute(tabel)
@@ -42,8 +41,7 @@ def tabellen_verwijderen(cursor):
         "Isomeer",
         "Eiwit",
         "Eiwit_Functie",
-        "Eiwit_Pathway",
-        "Blast_HSP",
+        "Eiwit_Pathway"
     ]
 
     for verwijder_tabel in verwijder:
@@ -53,7 +51,9 @@ def tabellen_verwijderen(cursor):
 def gen_aanmaken():
     return """CREATE TABLE IF NOT EXISTS Gen (
         Gen_ID VARCHAR(50) PRIMARY KEY,
-        Naam VARCHAR(50),
+        Naam TEXT,
+        Organisme TEXT,
+        Ensembl_IDs TEXT[] NOT NULL DEFAULT '{}',
         Sequentie TEXT,
         Startpositie INT,
         Eindpositie INT,
@@ -124,37 +124,6 @@ def eiwit_pathway_aanmaken():
         REFERENCES Eiwit(ID),
         FOREIGN KEY (Pathway_ID)
             REFERENCES Pathway(Pathway_Kegg_ID)
-    )"""
-
-
-def blast_hsp_aanmaken():
-    return """CREATE TABLE IF NOT EXISTS Blast_HSP (
-        ID SERIAL PRIMARY KEY,
-        Eiwit_ID INT NOT NULL,
-        Blast_ID TEXT,
-        Title TEXT,
-        Length INT,
-        Query_ID TEXT,
-        Query_Title TEXT,
-        Query_Length INT,
-        Evalue DOUBLE PRECISION,
-        Bit_Score DOUBLE PRECISION,
-        Score DOUBLE PRECISION,
-        Identities INT,
-        Positives INT,
-        Align_Length INT,
-        Gaps INT,
-        Query_Start INT,
-        Query_End INT,
-        Query_Frame INT,
-        Sbjct_Start INT,
-        Sbjct_End INT,
-        Sbjct_Frame INT,
-        Query_Seq TEXT,
-        Match_Midline TEXT,
-        Sbjct_Seq TEXT,
-        FOREIGN KEY (Eiwit_ID)
-            REFERENCES Eiwit(ID)
     )"""
 
 

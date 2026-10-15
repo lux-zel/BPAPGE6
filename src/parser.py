@@ -1,54 +1,50 @@
 from pathlib import Path
 from shutil import copyfileobj
-from urllib.parse import quote
 from urllib.request import urlopen
 from Bio import SeqIO, SwissProt
-import certifi
-import ssl
 
 DATA_DIR = Path("data")
 
-def _download_file(url: str, output_file: Path) -> Path | None:
+def _download_file(url, output_file):
     output_file.parent.mkdir(parents=True, exist_ok=True)
     if output_file.is_file():
         return output_file
 
-    temporary_file = output_file.with_name(f".{output_file.name}.part")
     try:
-        ssl_context = ssl.create_default_context(cafile=certifi.where())
-        with urlopen(url, context=ssl_context, timeout=60) as response:
-            with temporary_file.open("wb") as file:
+        with urlopen(url, timeout=60) as response:
+            with output_file.open("wb") as file:
                 copyfileobj(response, file)
-        temporary_file.replace(output_file)
+                
     except Exception as e:
-        if temporary_file.exists():
-            temporary_file.unlink()
+        if output_file.exists():
+            output_file.unlink()
         print(f"Error downloading {url}: {e}")
         return None
 
     return output_file
 
 
-def download_uniprot(accession: str) -> Path | None:
-    url = f"https://rest.uniprot.org/uniprotkb/{quote(accession, safe='')}.txt"
+def download_uniprot(accession):
+    url = f"https://rest.uniprot.org/uniprotkb/{accession}.txt"
     return _download_file(url, DATA_DIR / f"{accession}.txt")
 
 
-def download_kegg(kegg_id: str) -> Path | None:
-    url = f"https://rest.kegg.jp/get/{quote(kegg_id, safe=':')}"
+def download_kegg(kegg_id):
+    url = f"https://rest.kegg.jp/get/{kegg_id}"
     filename = kegg_id.replace(":", "_")
     return _download_file(url, DATA_DIR / "kegg" / f"{filename}.txt")
 
 
-def download_nucleotide(accession: str) -> Path | None:
-    url = f"https://www.ebi.ac.uk/ena/browser/api/fasta/{quote(accession, safe='')}"
+def download_nucleotide(accession):
+    url = f"https://www.ebi.ac.uk/ena/browser/api/fasta/{accession}"
     return _download_file(url, DATA_DIR / "nucleotide" / f"{accession}.fasta")
 
 
-def parse_uniprot(file_path: Path) -> dict:
+def parse_uniprot(file_path):
     annotations = {
         "uniprot_entry_name": None,
         "uniprot_accessions": [],
+        "gene_name": None,
         "uniprot_description": None,
         "uniprot_organism": None,
         "uniprot_sequence": None,
@@ -67,6 +63,7 @@ def parse_uniprot(file_path: Path) -> dict:
         annotations.update({
             "uniprot_entry_name": record.entry_name,
             "uniprot_accessions": list(record.accessions),
+            "gene_name": record.gene_name,
             "uniprot_description": record.description,
             "uniprot_organism": record.organism,
             "uniprot_sequence": record.sequence,
@@ -97,7 +94,7 @@ def parse_uniprot(file_path: Path) -> dict:
     return annotations
 
 
-def parse_kegg(file_path: Path) -> dict:
+def parse_kegg(file_path):
     fields = {}
     current_field = None
 
@@ -114,7 +111,7 @@ def parse_kegg(file_path: Path) -> dict:
     return fields
 
 
-def parse_nucleotide(file_path: Path) -> list:
+def parse_nucleotide(file_path):
     with open(file_path, encoding="utf-8") as handle:
         return [
             {
@@ -126,7 +123,7 @@ def parse_nucleotide(file_path: Path) -> list:
         ]
 
 
-def enrich_hits(hits: list) -> list:
+def enrich_hits(hits):
     uniprot_annotations = {}
     kegg_entries = {}
     nucleotide_records = {}
