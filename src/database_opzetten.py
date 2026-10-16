@@ -25,16 +25,10 @@ def database_opzetten(conn):
                 eiwit_aanmaken(),
                 eiwit_functie_aanmaken(),
                 eiwit_pathway_aanmaken(),
-<<<<<<< HEAD
-            ]
-            for tabel in tabellen:
+            ):
                 cursor.execute(tabel)
         conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+    
 
 
 def tabellen_verwijderen(cursor):
@@ -50,21 +44,14 @@ def tabellen_verwijderen(cursor):
 
     for verwijder_tabel in verwijder:
         cursor.execute(f"DROP TABLE IF EXISTS {verwijder_tabel} CASCADE")
-=======
-            ):
-                cursor.execute(tabel)
->>>>>>> 8e189f3616bbdb02b9f56e4dfcf851b284346df0
 
 
 def gen_aanmaken():
     return """CREATE TABLE IF NOT EXISTS Gen (
         Gen_ID VARCHAR(50) PRIMARY KEY,
-<<<<<<< HEAD
         Naam TEXT,
         Organisme TEXT,
         Ensembl_IDs TEXT[] NOT NULL DEFAULT '{}',
-=======
->>>>>>> 8e189f3616bbdb02b9f56e4dfcf851b284346df0
         Sequentie TEXT,
         Startpositie INT,
         Eindpositie INT,

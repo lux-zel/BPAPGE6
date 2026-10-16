@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from hashlib import sha256
 from pathlib import Path
 from shutil import copyfileobj
 from urllib.request import urlopen
@@ -43,22 +42,11 @@ def download_nucleotide(accession):
     return _download_file(url, DATA_DIR / "nucleotide" / f"{accession}.fasta")
 
 
-<<<<<<< HEAD
 def parse_uniprot(file_path):
     annotations = {
         "uniprot_entry_name": None,
         "uniprot_accessions": [],
         "gene_name": None,
-=======
-def download_nucleotide_annotations(accession: str) -> Path | None:
-    url = f"https://www.ebi.ac.uk/ena/browser/api/embl/{quote(accession, safe='')}"
-    return _download_file(url, DATA_DIR / "nucleotide" / f"{accession}.embl")
-
-
-def parse_uniprot(file_path: Path) -> dict:
-    annotations = {
-        "uniprot_entry_name": None,
->>>>>>> 8e189f3616bbdb02b9f56e4dfcf851b284346df0
         "uniprot_description": None,
         "uniprot_organism": None,
         "uniprot_sequence": None,
@@ -74,11 +62,8 @@ def parse_uniprot(file_path: Path) -> dict:
         record = SwissProt.read(handle)
         annotations.update({
             "uniprot_entry_name": record.entry_name,
-<<<<<<< HEAD
             "uniprot_accessions": list(record.accessions),
             "gene_name": record.gene_name,
-=======
->>>>>>> 8e189f3616bbdb02b9f56e4dfcf851b284346df0
             "uniprot_description": record.description,
             "uniprot_organism": record.organism,
             "uniprot_sequence": record.sequence,
@@ -122,12 +107,14 @@ def parse_kegg(file_path):
                 fields.setdefault(field, []).append(value)
                 current_field = field
             elif current_field and value:
-                fields[current_field][-1] += f" {value}"
+                if current_field == "PATHWAY":
+                    fields[current_field].append(value)
+                else:
+                    fields[current_field][-1] += f" {value}"
 
     return fields
 
 
-<<<<<<< HEAD
 def parse_nucleotide(file_path):
     with open(file_path, encoding="utf-8") as handle:
         return [
@@ -138,94 +125,6 @@ def parse_nucleotide(file_path):
             }
             for record in SeqIO.parse(handle, "fasta")
         ]
-=======
-def parse_nucleotide(
-    annotation_file_path: Path, sequence_file_path: Path | None
-) -> dict:
-    genes_by_protein_id = {}
-    isomers_by_locus_tag = {}
-    sequence_record = None
-    if sequence_file_path:
-        with open(sequence_file_path, encoding="utf-8") as handle:
-            sequence_record = next(SeqIO.parse(handle, "fasta"), None)
-
-    with open(annotation_file_path, encoding="utf-8") as handle:
-        for record in SeqIO.parse(handle, "embl"):
-            gene_features = [
-                feature for feature in record.features if feature.type == "gene"
-            ]
-            cds_features = [
-                feature for feature in record.features if feature.type == "CDS"
-            ]
-
-            for transcript in record.features:
-                if transcript.type != "mRNA":
-                    continue
-
-                locus_tag = _first_qualifier(transcript, "locus_tag")
-                if not locus_tag:
-                    continue
-
-                transcript_id = _first_qualifier(transcript, "transcript_id")
-                location = str(transcript.location)
-                variant_id = transcript_id or sha256(
-                    location.encode("utf-8")
-                ).hexdigest()[:12]
-                isomer_id = f"{record.id}:{locus_tag}:{variant_id}"
-                isomers_by_locus_tag.setdefault(locus_tag, []).append({
-                    "isomer_id": isomer_id,
-                    "sequence": (
-                        str(transcript.extract(sequence_record.seq))
-                        if sequence_record
-                        else None
-                    ),
-                    "splicing_variant": location,
-                    "codes": any(
-                        _first_qualifier(cds, "locus_tag") == locus_tag
-                        for cds in cds_features
-                    ),
-                })
-
-            for cds in cds_features:
-                protein_id = _first_qualifier(cds, "protein_id")
-                if not protein_id:
-                    continue
-
-                locus_tag = _first_qualifier(cds, "locus_tag")
-                gene_feature = next(
-                    (
-                        feature
-                        for feature in gene_features
-                        if locus_tag
-                        and _first_qualifier(feature, "locus_tag") == locus_tag
-                    ),
-                    None,
-                )
-                gene_feature = gene_feature or cds
-                start = int(gene_feature.location.start) + 1
-                end = int(gene_feature.location.end)
-                genes_by_protein_id[protein_id] = {
-                    "locus_tag": locus_tag,
-                    "sequence": (
-                        str(gene_feature.extract(sequence_record.seq))
-                        if sequence_record
-                        else None
-                    ),
-                    "start": start,
-                    "end": end,
-                    "strand": gene_feature.location.strand,
-                    "description": _first_qualifier(cds, "product"),
-                }
-    return {
-        "genes_by_protein_id": genes_by_protein_id,
-        "isomers_by_locus_tag": isomers_by_locus_tag,
-    }
-
-
-def _first_qualifier(feature, name: str) -> str | None:
-    values = feature.qualifiers.get(name) or []
-    return values[0] if values else None
->>>>>>> 8e189f3616bbdb02b9f56e4dfcf851b284346df0
 
 
 def enrich_hits(hits):
@@ -255,35 +154,16 @@ def enrich_hits(hits):
         nucleotide_data = {}
         for nucleotide_id in hit.get("embl_ids", []):
             if nucleotide_id not in nucleotide_records:
-                annotation_file_path = download_nucleotide_annotations(nucleotide_id)
                 sequence_file_path = download_nucleotide(nucleotide_id)
                 nucleotide_records[nucleotide_id] = (
-                    parse_nucleotide(annotation_file_path, sequence_file_path)
-                    if annotation_file_path
+                    parse_nucleotide(sequence_file_path)
+                    if sequence_file_path
                     else None
                 )
             if nucleotide_records[nucleotide_id] is not None:
                 nucleotide_data[nucleotide_id] = nucleotide_records[nucleotide_id]
 
-        for record in nucleotide_data.values():
-            gene_data = next(
-                (
-                    record["genes_by_protein_id"][protein_id]
-                    for protein_id in hit.get("embl_protein_ids", [])
-                    if protein_id in record["genes_by_protein_id"]
-                ),
-                None,
-            )
-            if gene_data:
-                hit["gene_data"] = gene_data
-                break
-
-        locus_tag = (hit.get("gene_data") or {}).get("locus_tag")
-        if locus_tag:
-            isomers = {}
-            for record in nucleotide_data.values():
-                for isomer in record["isomers_by_locus_tag"].get(locus_tag, []):
-                    isomers[isomer["isomer_id"]] = isomer
-            hit["isomers"] = list(isomers.values())
+        if nucleotide_data:
+            hit["nucleotide_data"] = nucleotide_data
 
     return hits
