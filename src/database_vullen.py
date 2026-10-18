@@ -5,10 +5,17 @@ import psycopg2
 
 
 def fill_database(data):
-    """Stores gene, protein, GO, and KEGG annotations in one transaction.
+    """
+    Vul de database met de verrijkte BLAST hits.
+    elk hit is een dictionary met annotaties van Uniprot, 
+    KEGG en nucleotide databases.
 
-    De database connection is geconfigureerd door de ``DATABASE_URL``
-    environment variable. Alle records zijn geschreven in één transactie.
+    Parameters:
+    data (list): Een lijst van verrijkte BLAST hits.
+
+    Returns:
+    inserted (int): Het aantal records dat succesvol is opgeslagen in de database.
+
     """
     conn_string = os.environ.get("DATABASE_URL")
     if not conn_string:
@@ -28,6 +35,17 @@ def fill_database(data):
 
 
 def _store_gene(hit, cursor):
+    """
+    Sla de geninformatie op in de database. Als het gen al bestaat, 
+    wordt het bijgewerkt met nieuwe informatie.
+
+    Parameters:
+    hit (dict): Een verrijkte BLAST hit met geninformatie.
+    cursor (psycopg2.cursor): De database cursor om de query's uit te voeren.
+
+    Returns:
+    gene_id (str): Het ID van het opgeslagen gen.
+    """
     gene_ids = hit.get("gene_id") or []
     gene_id = next((value for value in gene_ids if value), None)
     if gene_id is None:
@@ -55,6 +73,18 @@ def _store_gene(hit, cursor):
 
 
 def _store_protein(hit, gene_id, cursor):
+    """
+    Sla de eiwitinformatie op in de database. Als het eiwit al bestaat,
+    wordt het bijgewerkt met nieuwe informatie.
+
+    Parameters:
+    hit (dict): Een verrijkte BLAST hit met eiwitinformatie.
+    gene_id (str): Het ID van het bijbehorende gen.
+    cursor (psycopg2.cursor): De database cursor om de query's uit te voeren.
+
+    Returns:
+    protein_id (str): Het ID van het opgeslagen eiwit.
+    """
     cursor.execute(
         """
         INSERT INTO eiwit (
@@ -106,6 +136,15 @@ def _store_protein(hit, gene_id, cursor):
 
 
 def _store_go_data(hit, protein_id, cursor):
+    """
+    Sla de GO annotaties op in de database. Als de GO annotatie al bestaat,
+    wordt deze bijgewerkt met nieuwe informatie.
+
+    Parameters:
+    hit (dict): Een verrijkte BLAST hit met GO annotaties.
+    protein_id (str): Het ID van het bijbehorende eiwit.
+    cursor (psycopg2.cursor): De database cursor om de query's uit te voeren.
+    """
     for go_id, go_term, go_type in hit.get("go_data") or []:
         cursor.execute(
             """
@@ -128,6 +167,15 @@ def _store_go_data(hit, protein_id, cursor):
 
 
 def _store_pathways(hit, protein_id, cursor):
+    """
+    Sla de KEGG pathway annotaties op in de database. Als de pathway al bestaat,
+    wordt deze bijgewerkt met nieuwe informatie.
+
+    Parameters:
+    hit (dict): Een verrijkte BLAST hit met KEGG pathway annotaties.
+    protein_id (str): Het ID van het bijbehorende eiwit.
+    cursor (psycopg2.cursor): De database cursor om de query's uit te voeren.
+    """
     kegg_data = hit.get("kegg_data") or {}
     for kegg_entry in kegg_data.values():
         for pathway_entry in kegg_entry.get("PATHWAY") or []:

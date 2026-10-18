@@ -20,7 +20,7 @@ def blast_pairwise(query, subject):
     subject (string):   De fasta sequentie waartegen je Queried.
     
     Returns:
-    Een lijst met dictionaries, een dictionary per BLAST-hit.
+    data (list): Een lijst van dictionaries, een dict per BLAST hit.
     """
 
     project_dir = Path(__file__).parent

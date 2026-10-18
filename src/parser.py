@@ -8,6 +8,20 @@ from Bio import SeqIO, SwissProt
 DATA_DIR = Path("data")
 
 def _download_file(url, output_file):
+    """
+    Download de file van de gegeven url.
+
+    Deze functie downloadt een bestand van de meegegeven URL,
+    en slaat het op in de opgegeven output_file. 
+    Als het bestand al bestaat, wordt het niet opnieuw gedownload.
+
+    Parameters:
+    url (str): De URL van het bestand dat gedownload moet worden.
+    output_file (Path): Het pad waar het bestand opgeslagen moet worden.
+
+    Returns:
+    output_file (Path): Het pad naar het gedownloade bestand, of None als er een fout optrad.
+    """
     output_file.parent.mkdir(parents=True, exist_ok=True)
     if output_file.is_file():
         return output_file
@@ -27,22 +41,40 @@ def _download_file(url, output_file):
 
 
 def download_uniprot(accession):
+    """Download de Uniprot annotaties voor een gegeven accession."""
     url = f"https://rest.uniprot.org/uniprotkb/{accession}.txt"
     return _download_file(url, DATA_DIR / f"{accession}.txt")
 
 
 def download_kegg(kegg_id):
+    """Download de KEGG annotaties voor een gegeven KEGG ID."""
     url = f"https://rest.kegg.jp/get/{kegg_id}"
     filename = kegg_id.replace(":", "_")
     return _download_file(url, DATA_DIR / "kegg" / f"{filename}.txt")
 
 
 def download_nucleotide(accession):
+    """Download de nucleotide sequenties voor een gegeven accession."""
     url = f"https://www.ebi.ac.uk/ena/browser/api/fasta/{accession}"
     return _download_file(url, DATA_DIR / "nucleotide" / f"{accession}.fasta")
 
 
 def parse_uniprot(file_path):
+    """
+    Parse de Uniprot annotaties van een gegeven bestandspad.
+
+    Deze functie leest een Uniprot annotatiebestand en extraheert relevante informatie zoals
+    entry name, accessions, gene name, description, organism, sequence, gene IDs,
+    locus tags, KEGG IDs, EMBL IDs, EMBL protein IDs en GO data.
+    Voor de kegg_ids, embl_ids en go_data wordt er in de record.cross_references,
+    gekeken naar de juiste referenties.
+
+    Parameters:
+    file_path (Path): Het pad naar het Uniprot annotatiebestand.
+
+    Returns:
+    annotations (dict): Een dictionary met de geparste annotaties.
+    """
     annotations = {
         "uniprot_entry_name": None,
         "uniprot_accessions": [],
@@ -96,6 +128,15 @@ def parse_uniprot(file_path):
 
 
 def parse_kegg(file_path):
+    """
+    Parse de KEGG annotaties van een gegeven bestandspad.
+
+    Parameters:
+    file_path (Path): Het pad naar het KEGG annotatiebestand.
+
+    Returns:
+    fields (dict): Een dictionary met de geparste annotaties.
+    """
     fields = {}
     current_field = None
 
@@ -116,6 +157,7 @@ def parse_kegg(file_path):
 
 
 def parse_nucleotide(file_path):
+    """Parse de nucleotide sequenties van een gegeven bestandspad."""
     with open(file_path, encoding="utf-8") as handle:
         return [
             {
@@ -128,6 +170,17 @@ def parse_nucleotide(file_path):
 
 
 def enrich_hits(hits):
+    """
+    De enrich_hits functie verrijkt de BLAST hits met annotaties van,
+    Uniprot, KEGG en nucleotide databases. Het roept de download en parse functies aan 
+    voor elk van deze databases, en voegt de annotaties/datasets toe aan de hits.
+
+    Parameters:
+    hits (list): Een lijst van BLAST hits, elk hit is een dictionary met een "accession" key.
+
+    Returns:
+    hits (list): De lijst van BLAST hits, verrijkt met annotaties.
+    """
     uniprot_annotations = {}
     kegg_entries = {}
     nucleotide_records = {}

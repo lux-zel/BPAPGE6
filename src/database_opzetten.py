@@ -1,8 +1,11 @@
-from database_connectie import maak_database_connectie
-
-
 def database_opzetten(conn):
-    """Vervang de applicatietabellen door een lege database-indeling."""
+    """
+    Zet de database op door de benodigde tabellen aan te maken. 
+    Als de tabellen al bestaan, worden ze verwijderd en opnieuw aangemaakt.
+
+    Parameters:
+    conn (psycopg2.connection): De database connectie.
+    """
     with conn:
         with conn.cursor() as cursor:
             for tabel in (
@@ -146,11 +149,3 @@ def eiwit_pathway_aanmaken():
         FOREIGN KEY (Pathway_ID)
             REFERENCES Pathway(Pathway_Kegg_ID)
     )"""
-
-
-if __name__ == "__main__":
-    conn = maak_database_connectie()
-    try:
-        database_opzetten(conn)
-    finally:
-        conn.close()

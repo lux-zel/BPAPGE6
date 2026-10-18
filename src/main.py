@@ -6,6 +6,13 @@ from database_connectie import maak_database_connectie
 from database_opzetten import database_opzetten
 
 def main():
+    """
+    De aanroepbare functie van het programma, het roept de helper functies aan.
+    
+    De main functie van het programma. Deze functie verwerkt de command line argumenten, 
+    maakt een database connectie, zet de database op, voert een BLAST pairwise uit, 
+    verrijkt de resultaten en slaat deze op in de database.
+    """
     if len(sys.argv) < 3:
         print("Roep het programma aan met: python3 main.py <QUERY.fasta> <SUBJECT.fasta>")
         sys.exit(1)
@@ -22,7 +29,7 @@ def main():
     finally:
         conn.close()
 
-    print(f"Finished: {opgeslagen} records verwerkt en opgeslagen")
+    print(f"Klaar: {opgeslagen} records verwerkt en opgeslagen")
 
 
 if __name__ == '__main__':
