@@ -1,222 +1,172 @@
 from __future__ import annotations
 
+import json
+import time
 from pathlib import Path
-from shutil import copyfileobj
-from urllib.request import urlopen
-from Bio import SeqIO, SwissProt
+
+import requests
+
+
+KEGG_BASE = "https://rest.kegg.jp"
 
 DATA_DIR = Path("data")
 
-def _download_file(url, output_file):
-    """
-    Download de file van de gegeven url.
+FIELDS = ",".join([
+    "accession", "gene_primary", "organism_name", "organism_id",
+    "protein_name", "length", "sequence", "cc_pathway",
+    "go", "cc_function", "cc_alternative_products",
+])
 
-    Deze functie downloadt een bestand van de meegegeven URL,
-    en slaat het op in de opgegeven output_file. 
-    Als het bestand al bestaat, wordt het niet opnieuw gedownload.
 
-    Parameters:
-    url (str): De URL van het bestand dat gedownload moet worden.
-    output_file (Path): Het pad waar het bestand opgeslagen moet worden.
+def kegg_conv_uniprot(accession):
+    """Map a UniProt accession to KEGG gene IDs via /conv/genes/."""
+    url = f"{KEGG_BASE}/conv/genes/uniprot:{accession}"
+    r = requests.get(url, timeout=30)
+    r.raise_for_status()
+    time.sleep(0.2)
+    # Response lines: "up:P01308\thsa:3630"
+    kegg_ids = []
+    for line in r.text.strip().splitlines():
+        parts = line.split("\t")
+        if len(parts) >= 2 and parts[0] == f"up:{accession}":
+            kegg_ids.append(parts[1])   # "hsa:3630"
+    return kegg_ids
 
-    Returns:
-    output_file (Path): Het pad naar het gedownloade bestand, of None als er een fout optrad.
-    """
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    if output_file.is_file():
-        return output_file
 
-    try:
-        with urlopen(url, timeout=60) as response:
-            with output_file.open("wb") as file:
-                copyfileobj(response, file)
-                
-    except Exception as e:
-        if output_file.exists():
-            output_file.unlink()
-        print(f"Error downloading {url}: {e}")
-        return None
+def kegg_link_pathways(kegg_gene_id):
+    """Get pathway IDs for a KEGG gene ID via /link/pathway/."""
+    url = f"{KEGG_BASE}/link/pathway/{kegg_gene_id}"
+    r = requests.get(url, timeout=30)
+    r.raise_for_status()
+    time.sleep(0.2)
+    # Response lines: "path:cmy00071\tcmy:102946325"
+    pathway_ids = []
+    for line in r.text.strip().splitlines():
+        parts = line.split("\t")
+        if parts:
+            pid = parts[0].replace("path:", "")
+            pathway_ids.append(pid)
+    return pathway_ids
 
-    return output_file
+
+def kegg_get_pathway_name(pathway_id):
+    """Get pathway name from /get/ (flat text, NAME line)."""
+    url = f"{KEGG_BASE}/get/{pathway_id}"
+    r = requests.get(url, timeout=30)
+    r.raise_for_status()
+    time.sleep(0.2)
+    for line in r.text.splitlines():
+        if line.startswith("NAME"):
+            return line[12:].strip()
+    return None
+
+
+def _get(url, out_path):
+    """Download url to out_path (skip if already there). Return parsed JSON."""
+    if not out_path.is_file():
+        r = requests.get(url, timeout=60)
+        r.raise_for_status()
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(r.text, encoding="utf-8")
+        time.sleep(0.2)
+    return json.loads(out_path.read_text(encoding="utf-8"))
 
 
 def download_uniprot(accession):
-    """Download de Uniprot annotaties voor een gegeven accession."""
-    url = f"https://rest.uniprot.org/uniprotkb/{accession}.txt"
-    return _download_file(url, DATA_DIR / f"{accession}.txt")
+    url = f"https://rest.uniprot.org/uniprotkb/{accession}.json?fields={FIELDS}"
+    return _get(url, DATA_DIR / f"{accession}.json")
 
 
-def download_kegg(kegg_id):
-    """Download de KEGG annotaties voor een gegeven KEGG ID."""
-    url = f"https://rest.kegg.jp/get/{kegg_id}"
-    filename = kegg_id.replace(":", "_")
-    return _download_file(url, DATA_DIR / "kegg" / f"{filename}.txt")
+def parse_uniprot(entry):
+    """Pull the fields we care about out of a UniProt JSON entry."""
+    def first(lst, *keys, default=None):
+        for item in lst or []:
+            for k in keys:
+                item = item.get(k) if isinstance(item, dict) else item
+                if item is None:
+                    break
+            else:
+                return item
+        return default
 
+    genes = entry.get("genes", [])
+    comments = entry.get("comments", [])
 
-def download_nucleotide(accession):
-    """Download de nucleotide sequenties voor een gegeven accession."""
-    url = f"https://www.ebi.ac.uk/ena/browser/api/fasta/{accession}"
-    return _download_file(url, DATA_DIR / "nucleotide" / f"{accession}.fasta")
+    def comment_texts(ctype):
+        return [t["value"] for c in comments if c.get("commentType") == ctype
+                for t in c.get("texts", [])]
 
+    isoforms = [i.get("name", {}).get("value")
+                for c in comments if c.get("commentType") == "ALTERNATIVE PRODUCTS"
+                for i in c.get("isoforms", [])]
 
-def parse_uniprot(file_path):
-    """
-    Parse de Uniprot annotaties van een gegeven bestandspad.
+    go_terms = []
+    for xref in entry.get("uniProtKBCrossReferences", []):
+        if xref.get("database") != "GO":
+            continue
+        for p in xref.get("properties", []):
+            if p.get("key") == "GoTerm" and ":" in p["value"]:
+                aspect, term = p["value"].split(":", 1)
+                go_terms.append({"go_id": xref["id"], "aspect": aspect, "term": term})
 
-    Deze functie leest een Uniprot annotatiebestand en extraheert relevante informatie zoals
-    entry name, accessions, gene name, description, organism, sequence, gene IDs,
-    locus tags, KEGG IDs, EMBL IDs, EMBL protein IDs en GO data.
-    Voor de kegg_ids, embl_ids en go_data wordt er in de record.cross_references,
-    gekeken naar de juiste referenties.
-
-    Parameters:
-    file_path (Path): Het pad naar het Uniprot annotatiebestand.
-
-    Returns:
-    annotations (dict): Een dictionary met de geparste annotaties.
-    """
-    annotations = {
-        "uniprot_entry_name": None,
-        "uniprot_accessions": [],
-        "gene_name": None,
-        "uniprot_description": None,
-        "uniprot_organism": None,
-        "uniprot_sequence": None,
-        "gene_id": [],
-        "gene_locus_tag": None,
-        "kegg_ids": [],
-        "embl_ids": [],
-        "embl_protein_ids": [],
-        "go_data": [],
+    return {
+        "gene_primary":       first(genes, "geneName", "value"),
+        "organism_name":      entry.get("organism", {}).get("scientificName"),
+        "organism_id":        entry.get("organism", {}).get("taxonId"),
+        "protein_name":       first([entry.get("proteinDescription", {})],
+                                    "recommendedName", "fullName", "value"),
+        "length":             entry.get("sequence", {}).get("length"),
+        "sequence":           entry.get("sequence", {}).get("value"),
+        "cc_pathway":         comment_texts("PATHWAY"),
+        "go_terms":           go_terms,
+        "cc_function":        (comment_texts("FUNCTION") or [None])[0],
+        "isoforms":           isoforms,
     }
 
-    with open(file_path, encoding="utf-8") as handle:
-        record = SwissProt.read(handle)
-        annotations.update({
-            "uniprot_entry_name": record.entry_name,
-            "uniprot_accessions": list(record.accessions),
-            "gene_name": record.gene_name,
-            "uniprot_description": record.description,
-            "uniprot_organism": record.organism,
-            "uniprot_sequence": record.sequence,
-        })
 
-        for gene_annotation in record.gene_name or []:
-            for field in ("ORFNames", "OrderedLocusNames"):
-                values = gene_annotation.get(field) or []
-                if values and annotations["gene_locus_tag"] is None:
-                    annotations["gene_locus_tag"] = values[0].split(" {", 1)[0]
-
-        for ref in record.cross_references:
-            if ref[0] == "GeneID" and len(ref) > 1:
-                annotations["gene_id"].append(ref[1])
-            elif ref[0] == "KEGG" and len(ref) > 1:
-                annotations["kegg_ids"].append(ref[1])
-            elif ref[0] == "EMBL" and len(ref) > 1:
-                annotations["embl_ids"].append(ref[1])
-                if len(ref) > 2:
-                    annotations["embl_protein_ids"].append(ref[2])
-            elif ref[0] == "GO" and len(ref) > 2:
-                go_id = ref[1]
-                if ":" in ref[2]:
-                    go_type, go_term = ref[2].split(":", 1)
-                else:
-                    go_type, go_term = None, ref[2]
-                annotations["go_data"].append((go_id, go_term, go_type))
-
-    return annotations
+def build_gn_lookup(fasta_path):
+    """Map UniProt accession -> GN= value from proteome FASTA headers."""
+    lookup = {}
+    with open(fasta_path) as f:
+        for line in f:
+            if not line.startswith(">"):
+                continue
+            parts = line[1:].split("|")
+            if len(parts) < 3:
+                continue
+            accession = parts[1]
+            for token in line.split():
+                if token.startswith("GN="):
+                    lookup[accession] = token[3:]
+                    break
+    return lookup
 
 
-def parse_kegg(file_path):
-    """
-    Parse de KEGG annotaties van een gegeven bestandspad.
-
-    Parameters:
-    file_path (Path): Het pad naar het KEGG annotatiebestand.
-
-    Returns:
-    fields (dict): Een dictionary met de geparste annotaties.
-    """
-    fields = {}
-    current_field = None
-
-    with open(file_path, encoding="utf-8") as handle:
-        for line in handle:
-            field = line[:12].strip()
-            value = line[12:].strip()
-            if field:
-                fields.setdefault(field, []).append(value)
-                current_field = field
-            elif current_field and value:
-                if current_field == "PATHWAY":
-                    fields[current_field].append(value)
-                else:
-                    fields[current_field][-1] += f" {value}"
-
-    return fields
-
-
-def parse_nucleotide(file_path):
-    """Parse de nucleotide sequenties van een gegeven bestandspad."""
-    with open(file_path, encoding="utf-8") as handle:
-        return [
-            {
-                "id": record.id,
-                "description": record.description,
-                "sequence": str(record.seq),
-            }
-            for record in SeqIO.parse(handle, "fasta")
-        ]
-
-
-def enrich_hits(hits):
-    """
-    De enrich_hits functie verrijkt de BLAST hits met annotaties van,
-    Uniprot, KEGG en nucleotide databases. Het roept de download en parse functies aan 
-    voor elk van deze databases, en voegt de annotaties/datasets toe aan de hits.
-
-    Parameters:
-    hits (list): Een lijst van BLAST hits, elk hit is een dictionary met een "accession" key.
-
-    Returns:
-    hits (list): De lijst van BLAST hits, verrijkt met annotaties.
-    """
-    uniprot_annotations = {}
-    kegg_entries = {}
-    nucleotide_records = {}
+def enrich_hits(hits, gn_lookup=None):
+    gn_lookup = gn_lookup or {}
+    uniprot_cache = {}
+    kegg_cache = {}
 
     for hit in hits:
-        accession = hit["accession"]
-        if accession not in uniprot_annotations:
-            file_path = download_uniprot(accession)
-            uniprot_annotations[accession] = (
-                parse_uniprot(file_path) if file_path else {}
-            )
-        hit.update(uniprot_annotations[accession])
+        acc = hit["accession"]
+        if acc not in uniprot_cache:
+            uniprot_cache[acc] = parse_uniprot(download_uniprot(acc))
+        hit.update(uniprot_cache[acc])
 
-        kegg_data = {}
-        for kegg_id in hit.get("kegg_ids", []):
-            if kegg_id not in kegg_entries:
-                file_path = download_kegg(kegg_id)
-                kegg_entries[kegg_id] = parse_kegg(file_path) if file_path else None
-            if kegg_entries[kegg_id] is not None:
-                kegg_data[kegg_id] = kegg_entries[kegg_id]
-        if kegg_data:
-            hit["kegg_data"] = kegg_data
+        if not hit.get("gene_primary"):
+            hit["gene_primary"] = gn_lookup.get(acc)
 
-        nucleotide_data = {}
-        for nucleotide_id in hit.get("embl_ids", []):
-            if nucleotide_id not in nucleotide_records:
-                sequence_file_path = download_nucleotide(nucleotide_id)
-                nucleotide_records[nucleotide_id] = (
-                    parse_nucleotide(sequence_file_path)
-                    if sequence_file_path
-                    else None
-                )
-            if nucleotide_records[nucleotide_id] is not None:
-                nucleotide_data[nucleotide_id] = nucleotide_records[nucleotide_id]
+        # Direct KEGG lookup by UniProt accession
+        if acc not in kegg_cache:
+            kegg_gene_ids = kegg_conv_uniprot(acc)
+            pathways = {}
+            for gene_id in kegg_gene_ids:
+                for pid in kegg_link_pathways(gene_id):
+                    if pid not in pathways:
+                        pathways[pid] = kegg_get_pathway_name(pid)
+            kegg_cache[acc] = pathways
 
-        if nucleotide_data:
-            hit["nucleotide_data"] = nucleotide_data
+        if kegg_cache[acc]:
+            hit["kegg_pathways"] = kegg_cache[acc]
 
     return hits

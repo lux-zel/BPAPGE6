@@ -11,69 +11,43 @@ from pathlib import Path
 from Bio.Blast import NCBIXML
 
 def blast_pairwise(query, subject):
-    """
-    Deze function maakt gebruikt van Biopython's wrapper rond de BLAST+ binaries.
-    Het voert een local paiwise BLAST uit met een locaal aangemaakte database.
-    
-    Parameters:
-    query (string):     De fasta sequentie van de sequentie die je Queried.
-    subject (string):   De fasta sequentie waartegen je Queried.
-    
-    Returns:
-    data (list): Een lijst van dictionaries, een dict per BLAST hit.
-    """
-
     project_dir = Path(__file__).parent
+    xml_path = project_dir / 'hits.xml'
 
     env = {
         **os.environ,
         "QUERY": str(Path(query).resolve()),
         "SUBJECT": str(Path(subject).resolve()),
+        "OUT": str(xml_path),
     }
-
-    subprocess.run(
-        ['sh', str(project_dir / 'blast.sh')],
-        env=env, 
-        check=True
-        )
+    subprocess.run(['sh', str(project_dir / 'blast.sh')], env=env, check=True)
 
     data = []
-    with open('hits.xml', 'rb') as xml_file:
-        records = NCBIXML.parse(xml_file)
-
-        for record in records:
-            for alignment in record.alignments:  
-
-                protein_id = alignment.Hit_def.split('|')[1]
-                protein_length = alignment.Hit_len
-                gene_id = alignment.hit_def.split('GN=')[1].split()[0]
-
-                hsps_list = []
-                for hsp in alignment.hsps:
-
-                    hsp_start = hsp.query_start
-                    hsp_end = hsp.query_end
-                    query_seq = hsp.Hsp_qseq
-                    sbjct_seq = hsp.Hsp_hseq
-                    hsp_align = hsp.Hsp_midline
-
-                    hsps_list.append({
-                        "hsp_start": hsp_start,
-                        "hsp_end": hsp_end,
-                        "query_seq": query_seq,
-                        "sbjct_seq": sbjct_seq,
-                        "hsp_align": hsp_align
-                    })
-                    
-            data.append({
-                "protein_id": protein_id,
-                "protein_length": protein_length,
-                "gene_id": gene_id,
-                "hsps": hsps_list
-            })
-
+    with open(xml_path, 'rb') as xml_file:
+        for record in NCBIXML.parse(xml_file):
+            for alignment in record.alignments[:1]:
+                parts = alignment.hit_id.split('|')
+                if len(parts) < 3:
+                    continue
+                hsp = alignment.hsps[0] if alignment.hsps else None
+                data.append({
+                    "accession":     parts[1],
+                    "query_id":      record.query_id,
+                    "evalue":        hsp.expect       if hsp else None,
+                    "bitscore":      hsp.bits         if hsp else None,
+                    "score":         hsp.score        if hsp else None,
+                    "identities":    hsp.identities   if hsp else None,
+                    "align_length":  hsp.align_length if hsp else None,
+                    "gaps":          hsp.gaps         if hsp else None,
+                    "query_start":   hsp.query_start  if hsp else None,
+                    "query_end":     hsp.query_end    if hsp else None,
+                    "query_frame":   hsp.frame[0]     if hsp else None,
+                    "subject_start": hsp.sbjct_start  if hsp else None,
+                    "subject_end":   hsp.sbjct_end    if hsp else None,
+                    "subject_frame": hsp.frame[1]     if hsp else None,
+                })
 
     print(f"BLAST pairwise completed: {len(data)} hits gevonden.")
-    print(f"Start nu met het verrijken van de hits met annotaties van Uniprot, KEGG en NCBI Nucleotide. \
-          \nDit kan even duren...")
+    print("Start nu met het verrijken van de hits met annotaties van UniProt en KEGG.")
+    print("Dit kan even duren...")
     return data
