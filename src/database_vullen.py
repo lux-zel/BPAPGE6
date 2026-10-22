@@ -1,5 +1,5 @@
 def database_vullen(conn, hits):
-    """Fill all tables from the enriched BLAST hits."""
+    """Vul alle tables van de enriched BLAST hits."""
     with conn:
         with conn.cursor() as cur:
             for hit in hits:
@@ -11,7 +11,7 @@ def database_vullen(conn, hits):
 
 
 def _gen_toevoegen(cur, hit):
-    """Insert gene if it has a name; return Gen_ID or None."""
+    """Insert gene als het een naam heeft; return Gen_ID of None."""
     gen_id = hit.get("gene_primary")
     if not gen_id:
         return None
@@ -25,7 +25,7 @@ def _gen_toevoegen(cur, hit):
 
 
 def _eiwit_toevoegen(cur, hit, gen_id):
-    """Insert protein + its BLAST HSP; return Eiwit.ID (serial)."""
+    """Insert eiwit + zijn BLAST HSP; return Eiwit.ID (serial)."""
     cur.execute(
         """INSERT INTO Eiwit (
                Eiwit_ID, Gen_ID, Naam,
@@ -51,7 +51,7 @@ def _eiwit_toevoegen(cur, hit, gen_id):
 
 
 def _isomeer_toevoegen(cur, hit, gen_id):
-    """Insert each isoform, linked to its gene (skip if no gene)."""
+    """Insert elke isoform, linked met zijn gene (skip als geen gene)."""
     if not gen_id:
         return
     for iso_id in hit.get("isoforms") or []:

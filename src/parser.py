@@ -19,27 +19,25 @@ FIELDS = ",".join([
 
 
 def kegg_conv_uniprot(accession):
-    """Map a UniProt accession to KEGG gene IDs via /conv/genes/."""
+    """Map een UniProt accession tot KEGG gene IDs via /conv/genes/."""
     url = f"{KEGG_BASE}/conv/genes/uniprot:{accession}"
     r = requests.get(url, timeout=30)
     r.raise_for_status()
     time.sleep(0.2)
-    # Response lines: "up:P01308\thsa:3630"
     kegg_ids = []
     for line in r.text.strip().splitlines():
         parts = line.split("\t")
         if len(parts) >= 2 and parts[0] == f"up:{accession}":
-            kegg_ids.append(parts[1])   # "hsa:3630"
+            kegg_ids.append(parts[1])  
     return kegg_ids
 
 
 def kegg_link_pathways(kegg_gene_id):
-    """Get pathway IDs for a KEGG gene ID via /link/pathway/."""
+    """Krijg pathway IDs voor een KEGG gene ID via /link/pathway/."""
     url = f"{KEGG_BASE}/link/pathway/{kegg_gene_id}"
     r = requests.get(url, timeout=30)
     r.raise_for_status()
     time.sleep(0.2)
-    # Response lines: "path:cmy00071\tcmy:102946325"
     pathway_ids = []
     for line in r.text.strip().splitlines():
         parts = line.split("\t")
@@ -50,7 +48,7 @@ def kegg_link_pathways(kegg_gene_id):
 
 
 def kegg_get_pathway_name(pathway_id):
-    """Get pathway name from /get/ (flat text, NAME line)."""
+    """Krijg pathway naam van /get/ (flat text, NAME line)."""
     url = f"{KEGG_BASE}/get/{pathway_id}"
     r = requests.get(url, timeout=30)
     r.raise_for_status()
@@ -62,7 +60,7 @@ def kegg_get_pathway_name(pathway_id):
 
 
 def _get(url, out_path):
-    """Download url to out_path (skip if already there). Return parsed JSON."""
+    """Download url tot out_path (skip als al bestaat). Return parsed JSON."""
     if not out_path.is_file():
         r = requests.get(url, timeout=60)
         r.raise_for_status()
@@ -78,7 +76,7 @@ def download_uniprot(accession):
 
 
 def parse_uniprot(entry):
-    """Pull the fields we care about out of a UniProt JSON entry."""
+    """Krijg de fields die ertoe doen van UniProt JSON entry."""
     def first(lst, *keys, default=None):
         for item in lst or []:
             for k in keys:
@@ -125,7 +123,7 @@ def parse_uniprot(entry):
 
 
 def build_gn_lookup(fasta_path):
-    """Map UniProt accession -> GN= value from proteome FASTA headers."""
+    """Map de UniProt accession -> GN= waarde van proteome FASTA headers."""
     lookup = {}
     with open(fasta_path) as f:
         for line in f:
@@ -156,7 +154,6 @@ def enrich_hits(hits, gn_lookup=None):
         if not hit.get("gene_primary"):
             hit["gene_primary"] = gn_lookup.get(acc)
 
-        # Direct KEGG lookup by UniProt accession
         if acc not in kegg_cache:
             kegg_gene_ids = kegg_conv_uniprot(acc)
             pathways = {}

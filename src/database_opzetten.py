@@ -1,5 +1,5 @@
 def database_opzetten(conn):
-    """Drop and recreate all tables."""
+    """Drop alle tables om later weer aan te maken."""
     with conn:
         with conn.cursor() as cursor:
             tabellen_verwijderen(cursor)
