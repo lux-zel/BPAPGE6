@@ -19,7 +19,7 @@ FIELDS = ",".join([
 
 
 def kegg_conv_uniprot(accession):
-    """Map een UniProt accession tot KEGG gene IDs via /conv/genes/."""
+    """Koppel een UniProt-accession aan KEGG-gen-ID's."""
     url = f"{KEGG_BASE}/conv/genes/uniprot:{accession}"
     r = requests.get(url, timeout=30)
     r.raise_for_status()
@@ -28,12 +28,12 @@ def kegg_conv_uniprot(accession):
     for line in r.text.strip().splitlines():
         parts = line.split("\t")
         if len(parts) >= 2 and parts[0] == f"up:{accession}":
-            kegg_ids.append(parts[1])  
+            kegg_ids.append(parts[1])
     return kegg_ids
 
 
 def kegg_link_pathways(kegg_gene_id):
-    """Krijg pathway IDs voor een KEGG gene ID via /link/pathway/."""
+    """Geef de pathway-ID's die aan een KEGG-gen-ID gekoppeld zijn."""
     url = f"{KEGG_BASE}/link/pathway/{kegg_gene_id}"
     r = requests.get(url, timeout=30)
     r.raise_for_status()
@@ -42,13 +42,13 @@ def kegg_link_pathways(kegg_gene_id):
     for line in r.text.strip().splitlines():
         parts = line.split("\t")
         if parts:
-            pid = parts[0].replace("path:", "")
+            pid = parts[1].replace("path:", "")
             pathway_ids.append(pid)
     return pathway_ids
 
 
 def kegg_get_pathway_name(pathway_id):
-    """Krijg pathway naam van /get/ (flat text, NAME line)."""
+    """Geef de naam van een KEGG-pathway."""
     url = f"{KEGG_BASE}/get/{pathway_id}"
     r = requests.get(url, timeout=30)
     r.raise_for_status()
@@ -60,7 +60,7 @@ def kegg_get_pathway_name(pathway_id):
 
 
 def _get(url, out_path):
-    """Download url tot out_path (skip als al bestaat). Return parsed JSON."""
+    """Download JSON indien nodig en geef de inhoud van de cache terug."""
     if not out_path.is_file():
         r = requests.get(url, timeout=60)
         r.raise_for_status()
@@ -71,32 +71,41 @@ def _get(url, out_path):
 
 
 def download_uniprot(accession):
-    url = f"https://rest.uniprot.org/uniprotkb/{accession}.json?fields={FIELDS}"
+    """Download en geef het UniProt-JSON-record van een accession terug."""
+    url = (
+        f"https://rest.uniprot.org/uniprotkb/{accession}.json"
+        f"?fields={FIELDS}"
+    )
     return _get(url, DATA_DIR / f"{accession}.json")
 
 
-def parse_uniprot(entry):
-    """Krijg de fields die ertoe doen van UniProt JSON entry."""
-    def first(lst, *keys, default=None):
-        for item in lst or []:
-            for k in keys:
-                item = item.get(k) if isinstance(item, dict) else item
-                if item is None:
-                    break
-            else:
-                return item
-        return default
+def _first_nested_value(items, *keys, default=None):
+    """Geef de eerste waarde terug die via de opgegeven sleutels wordt gevonden."""
+    for item in items or []:
+        value = item
+        for key in keys:
+            value = value.get(key) if isinstance(value, dict) else value
+            if value is None:
+                break
+        else:
+            return value
+    return default
 
+
+def _comment_texts(comments, comment_type):
+    """Geef de tekstwaarden van een UniProt-commentaartype terug."""
+    return [
+        text["value"]
+        for comment in comments
+        if comment.get("commentType") == comment_type
+        for text in comment.get("texts", [])
+    ]
+
+
+def parse_uniprot(entry):
+    """Haal de databaseannotaties uit een UniProt-record."""
     genes = entry.get("genes", [])
     comments = entry.get("comments", [])
-
-    def comment_texts(ctype):
-        return [t["value"] for c in comments if c.get("commentType") == ctype
-                for t in c.get("texts", [])]
-
-    isoforms = [i.get("name", {}).get("value")
-                for c in comments if c.get("commentType") == "ALTERNATIVE PRODUCTS"
-                for i in c.get("isoforms", [])]
 
     go_terms = []
     for xref in entry.get("uniProtKBCrossReferences", []):
@@ -105,25 +114,32 @@ def parse_uniprot(entry):
         for p in xref.get("properties", []):
             if p.get("key") == "GoTerm" and ":" in p["value"]:
                 aspect, term = p["value"].split(":", 1)
-                go_terms.append({"go_id": xref["id"], "aspect": aspect, "term": term})
+                go_terms.append({
+                    "go_id": xref["id"],
+                    "aspect": aspect,
+                    "term": term,
+                })
 
     return {
-        "gene_primary":       first(genes, "geneName", "value"),
-        "organism_name":      entry.get("organism", {}).get("scientificName"),
-        "organism_id":        entry.get("organism", {}).get("taxonId"),
-        "protein_name":       first([entry.get("proteinDescription", {})],
-                                    "recommendedName", "fullName", "value"),
-        "length":             entry.get("sequence", {}).get("length"),
-        "sequence":           entry.get("sequence", {}).get("value"),
-        "cc_pathway":         comment_texts("PATHWAY"),
-        "go_terms":           go_terms,
-        "cc_function":        (comment_texts("FUNCTION") or [None])[0],
-        "isoforms":           isoforms,
+        "gene_primary": _first_nested_value(genes, "geneName", "value"),
+        "organism_name": entry.get("organism", {}).get("scientificName"),
+        "organism_id": entry.get("organism", {}).get("taxonId"),
+        "protein_name": _first_nested_value(
+            [entry.get("proteinDescription", {})],
+            "recommendedName",
+            "fullName",
+            "value",
+        ),
+        "length": entry.get("sequence", {}).get("length"),
+        "sequence": entry.get("sequence", {}).get("value"),
+        "cc_pathway": _comment_texts(comments, "PATHWAY"),
+        "go_terms": go_terms,
+        "cc_function": (_comment_texts(comments, "FUNCTION") or [None])[0],
     }
 
 
 def build_gn_lookup(fasta_path):
-    """Map de UniProt accession -> GN= waarde van proteome FASTA headers."""
+    """Koppel UniProt-accessions aan genennamen uit FASTA-headers."""
     lookup = {}
     with open(fasta_path) as f:
         for line in f:
@@ -140,7 +156,48 @@ def build_gn_lookup(fasta_path):
     return lookup
 
 
+def build_isoform_records(fasta_path):
+    """Lees isoformannotaties, accessions en genen uit FASTA-headers."""
+    isoforms = []
+    with open(fasta_path) as f:
+        for line in f:
+            if not line.startswith(">"):
+                continue
+            parts = line[1:].strip().split("|", 2)
+            if len(parts) < 3:
+                continue
+            description = parts[2].split(" ", 1)
+            if len(description) < 2:
+                continue
+            protein_name = description[1].split(" OS=", 1)[0]
+            if "isoform" not in protein_name.casefold():
+                continue
+
+            gene_id = next(
+                (
+                    token[3:]
+                    for token in line.split()
+                    if token.startswith("GN=")
+                ),
+                None,
+            )
+            organism = (
+                line.split(" OS=", 1)[1].split(" OX=", 1)[0]
+                if " OS=" in line and " OX=" in line
+                else None
+            )
+            if gene_id:
+                isoforms.append({
+                    "accession": parts[1],
+                    "gene_id": gene_id,
+                    "organism_name": organism,
+                    "isoform_name": protein_name,
+                })
+    return isoforms
+
+
 def enrich_hits(hits, gn_lookup=None):
+    """Voeg UniProt- en KEGG-annotaties toe aan BLAST-hits."""
     gn_lookup = gn_lookup or {}
     uniprot_cache = {}
     kegg_cache = {}

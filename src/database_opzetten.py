@@ -1,5 +1,5 @@
 def database_opzetten(conn):
-    """Drop alle tables om later weer aan te maken."""
+    """Verwijder bestaande tabellen en maak een nieuw databaseschema aan."""
     with conn:
         with conn.cursor() as cursor:
             tabellen_verwijderen(cursor)
@@ -16,6 +16,7 @@ def database_opzetten(conn):
 
 
 def tabellen_verwijderen(cursor):
+    """Verwijder alle applicatietabellen en bijbehorende beperkingen."""
     for tabel in (
         "Eiwit_Functie", "Eiwit_Pathway", "Isomeer",
         "Eiwit", "Functie", "Pathway", "Gen",
@@ -24,6 +25,7 @@ def tabellen_verwijderen(cursor):
 
 
 def gen_aanmaken():
+    """Geef de SQL-opdracht voor de gentabel terug."""
     return """CREATE TABLE Gen (
         Gen_ID VARCHAR(50) PRIMARY KEY,
         Naam TEXT,
@@ -32,6 +34,7 @@ def gen_aanmaken():
 
 
 def functie_aanmaken():
+    """Geef de SQL-opdracht voor de functietabel terug."""
     return """CREATE TABLE Functie (
         Go_ID VARCHAR(50) PRIMARY KEY,
         Go_Term TEXT,
@@ -40,6 +43,7 @@ def functie_aanmaken():
 
 
 def pathway_aanmaken():
+    """Geef de SQL-opdracht voor de pathwaytabel terug."""
     return """CREATE TABLE Pathway (
         Pathway_Kegg_ID VARCHAR(50) PRIMARY KEY,
         Naam TEXT
@@ -47,14 +51,17 @@ def pathway_aanmaken():
 
 
 def isomeer_aanmaken():
+    """Geef de SQL-opdracht voor de isomeertabel terug."""
     return """CREATE TABLE Isomeer (
         Isomeer_ID TEXT PRIMARY KEY,
         Gen_ID VARCHAR(50),
+        Naam TEXT,
         FOREIGN KEY (Gen_ID) REFERENCES Gen(Gen_ID)
     )"""
 
 
 def eiwit_aanmaken():
+    """Geef de SQL-opdracht voor de eiwittabel terug."""
     return """CREATE TABLE Eiwit (
         ID SERIAL PRIMARY KEY,
         Eiwit_ID VARCHAR(50),
@@ -80,6 +87,7 @@ def eiwit_aanmaken():
 
 
 def eiwit_functie_aanmaken():
+    """Geef de SQL-opdracht voor de eiwit-functiekoppeltabel terug."""
     return """CREATE TABLE Eiwit_Functie (
         Eiwit_ID INT,
         Go_ID VARCHAR(50),
@@ -90,6 +98,7 @@ def eiwit_functie_aanmaken():
 
 
 def eiwit_pathway_aanmaken():
+    """Geef de SQL-opdracht voor de eiwit-pathwaykoppeltabel terug."""
     return """CREATE TABLE Eiwit_Pathway (
         Eiwit_ID INT,
         Pathway_ID VARCHAR(50),

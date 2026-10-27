@@ -1,17 +1,26 @@
-def database_vullen(conn, hits):
-    """Vul alle tables van de enriched BLAST hits."""
+def database_vullen(conn, hits, isoforms=()):
+    """Sla verrijkte BLAST-hits en FASTA-isoformen op in de database."""
     with conn:
         with conn.cursor() as cur:
             for hit in hits:
                 gen_id = _gen_toevoegen(cur, hit)
                 eiwit_id = _eiwit_toevoegen(cur, hit, gen_id)
-                _isomeer_toevoegen(cur, hit, gen_id)
                 _functie_toevoegen(cur, hit, eiwit_id)
                 _pathway_toevoegen(cur, hit, eiwit_id)
 
+            for isoform in isoforms:
+                gen_id = _gen_toevoegen(
+                    cur,
+                    {
+                        "gene_primary": isoform["gene_id"],
+                        "organism_name": isoform["organism_name"],
+                    },
+                )
+                _isomeer_toevoegen(cur, isoform, gen_id)
+
 
 def _gen_toevoegen(cur, hit):
-    """Insert gene als het een naam heeft; return Gen_ID of None."""
+    """Voeg een gen met naam toe en geef het gen-ID terug."""
     gen_id = hit.get("gene_primary")
     if not gen_id:
         return None
@@ -25,7 +34,7 @@ def _gen_toevoegen(cur, hit):
 
 
 def _eiwit_toevoegen(cur, hit, gen_id):
-    """Insert eiwit + zijn BLAST HSP; return Eiwit.ID (serial)."""
+    """Voeg een eiwit en de BLAST-HSP toe en geef het database-ID terug."""
     cur.execute(
         """INSERT INTO Eiwit (
                Eiwit_ID, Gen_ID, Naam,
@@ -37,34 +46,44 @@ def _eiwit_toevoegen(cur, hit, gen_id):
            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
            RETURNING ID""",
         (
-            hit["accession"], gen_id,
-            hit.get("protein_name"),
-            hit.get("organism_name"), hit.get("sequence"), hit.get("length"),
-            hit.get("query_id"), hit.get("evalue"), hit.get("bitscore"),
-            hit.get("score"), hit.get("identities"), hit.get("align_length"),
-            hit.get("gaps"),
-            hit.get("query_start"), hit.get("query_end"), hit.get("query_frame"),
-            hit.get("subject_start"), hit.get("subject_end")
-        ),
+               hit["accession"],
+               gen_id,
+               hit.get("protein_name"),
+               hit.get("organism_name"),
+               hit.get("sequence"),
+               hit.get("length"),
+               hit.get("query_id"),
+               hit.get("evalue"),
+               hit.get("bitscore"),
+               hit.get("score"),
+               hit.get("identities"),
+               hit.get("align_length"),
+               hit.get("gaps"),
+               hit.get("query_start"),
+               hit.get("query_end"),
+               hit.get("query_frame"),
+               hit.get("subject_start"),
+               hit.get("subject_end"),
+           ),
     )
     return cur.fetchone()[0]
 
 
-def _isomeer_toevoegen(cur, hit, gen_id):
-    """Insert elke isoform, linked met zijn gene (skip als geen gene)."""
-    if not gen_id:
+def _isomeer_toevoegen(cur, isoform, gen_id):
+    """Voeg een FASTA-isoformannotatie toe en koppel deze aan het gen."""
+    isoform_name = isoform.get("isoform_name")
+    if not gen_id or not isoform_name:
         return
-    for iso_id in hit.get("isoforms") or []:
-        cur.execute(
-            """INSERT INTO Isomeer (Isomeer_ID, Gen_ID)
-               VALUES (%s, %s)
-               ON CONFLICT (Isomeer_ID) DO NOTHING""",
-            (iso_id, gen_id),
-        )
+    cur.execute(
+        """INSERT INTO Isomeer (Isomeer_ID, Gen_ID, Naam)
+           VALUES (%s, %s, %s)
+           ON CONFLICT (Isomeer_ID) DO NOTHING""",
+        (isoform["accession"], gen_id, isoform_name),
+    )
 
 
 def _functie_toevoegen(cur, hit, eiwit_id):
-    """Insert GO terms + link rows."""
+    """Voeg GO-termen toe en koppel ze aan het eiwit."""
     for go in hit.get("go_terms") or []:
         cur.execute(
             """INSERT INTO Functie (Go_ID, Go_Term, Go_Type)
@@ -81,6 +100,7 @@ def _functie_toevoegen(cur, hit, eiwit_id):
 
 
 def _pathway_toevoegen(cur, hit, eiwit_id):
+    """Voeg KEGG-pathways toe en koppel ze aan het eiwit."""
     for path_id, path_name in (hit.get("kegg_pathways") or {}).items():
         cur.execute(
             """INSERT INTO Pathway (Pathway_Kegg_ID, Naam)
