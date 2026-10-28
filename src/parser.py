@@ -47,16 +47,26 @@ def kegg_link_pathways(kegg_gene_id):
     return pathway_ids
 
 
-def kegg_get_pathway_name(pathway_id):
-    """Geef de naam van een KEGG-pathway."""
+def kegg_get_pathway_info(pathway_id):
+    """Geef de naam en classificatie van een KEGG-pathway."""
     url = f"{KEGG_BASE}/get/{pathway_id}"
     r = requests.get(url, timeout=30)
     r.raise_for_status()
     time.sleep(0.2)
+    name = None
+    classification = None
     for line in r.text.splitlines():
         if line.startswith("NAME"):
-            return line[12:].strip()
-    return None
+            name = line[12:].strip()
+        elif line.startswith("CLASS"):
+            classification = line[12:].split(";", 1)[0].strip()
+    return name, classification
+
+
+def kegg_get_pathway_name(pathway_id):
+    """Geef de naam van een KEGG-pathway."""
+    name, _ = kegg_get_pathway_info(pathway_id)
+    return name
 
 
 def _get(url, out_path):
@@ -217,7 +227,15 @@ def enrich_hits(hits, gn_lookup=None):
             for gene_id in kegg_gene_ids:
                 for pid in kegg_link_pathways(gene_id):
                     if pid not in pathways:
-                        pathways[pid] = kegg_get_pathway_name(pid)
+                        name, classification = kegg_get_pathway_info(pid)
+                        pathways[pid] = name
+                        if classification == "Metabolism":
+                            organism = gene_id.split(":", 1)[0]
+                            global_pathway_id = f"{organism}01100"
+                            if global_pathway_id not in pathways:
+                                pathways[global_pathway_id] = (
+                                    kegg_get_pathway_name(global_pathway_id)
+                                )
             kegg_cache[acc] = pathways
 
         if kegg_cache[acc]:
