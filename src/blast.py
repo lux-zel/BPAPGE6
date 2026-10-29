@@ -57,5 +57,5 @@ def blast_pairwise(query, subject):
         "Start nu met het verrijken van de hits "
         "met annotaties van UniProt en KEGG."
     )
-    print("Dit kan even duren...")
+    print("Dit kan even duren... (5-10 minuten)")
     return data

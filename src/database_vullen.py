@@ -38,30 +38,23 @@ def _eiwit_toevoegen(cur, hit, gen_id):
     cur.execute(
         """INSERT INTO Eiwit (
                Eiwit_ID, Gen_ID, Naam,
-               Uniprot_Organisme, Aminozuursequentie, Lengte,
-               Query_ID, Evalue, Bit_score, Score, Identiteiten,
-               Uitlijningslengte, Gaps,
-               Query_start, Query_eind, Query_frame,
+               Aminozuursequentie, Lengte,
+               Evalue, Bit_score, Gaps,
+               Query_start, Query_eind,
                Onderwerp_start, Onderwerp_eind
-           ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+           ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
            RETURNING ID""",
         (
                hit["accession"],
                gen_id,
                hit.get("protein_name"),
-               hit.get("organism_name"),
                hit.get("sequence"),
                hit.get("length"),
-               hit.get("query_id"),
                hit.get("evalue"),
                hit.get("bitscore"),
-               hit.get("score"),
-               hit.get("identities"),
-               hit.get("align_length"),
                hit.get("gaps"),
                hit.get("query_start"),
                hit.get("query_end"),
-               hit.get("query_frame"),
                hit.get("subject_start"),
                hit.get("subject_end"),
            ),
