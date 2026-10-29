@@ -2,9 +2,7 @@
 * Biopython
 * psycopg2
 * requests
-* NCBI+     (on path)
-* BLAST+    (on path)
-* Internet access to UniProt and KEGG APIs
+* NCBI-blast+     (on path)
 
 Om het programma te kunnen gebruiken moet je verbonden zijn met eduvpn hogeschool leiden. Run het programma vanuit `/src`. met het commando:
 
