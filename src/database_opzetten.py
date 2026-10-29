@@ -27,9 +27,7 @@ def tabellen_verwijderen(cursor):
 def gen_aanmaken():
     """Geef de SQL-opdracht voor de gentabel terug."""
     return """CREATE TABLE Gen (
-        Gen_ID VARCHAR(50) PRIMARY KEY,
-        Naam TEXT,
-        Organisme TEXT
+        Gen_ID VARCHAR(50) PRIMARY KEY
     )"""
 
 
@@ -64,11 +62,10 @@ def eiwit_aanmaken():
     """Geef de SQL-opdracht voor de eiwittabel terug."""
     return """CREATE TABLE Eiwit (
         ID SERIAL PRIMARY KEY,
-        Eiwit_ID VARCHAR(50),
+        Eiwit_ID VARCHAR(50) UNIQUE,
         Gen_ID VARCHAR(50),
         Naam TEXT,
         Aminozuursequentie TEXT,
-        Lengte INT,
         Evalue DOUBLE PRECISION,
         Bit_score DOUBLE PRECISION,
         Gaps INT,

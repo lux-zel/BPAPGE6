@@ -20,15 +20,15 @@ def database_vullen(conn, hits, isoforms=()):
 
 
 def _gen_toevoegen(cur, hit):
-    """Voeg een gen met naam toe en geef het gen-ID terug."""
+    """Voeg een gen toe en geef het gen-ID terug."""
     gen_id = hit.get("gene_primary")
     if not gen_id:
         return None
     cur.execute(
-        """INSERT INTO Gen (Gen_ID, Naam, Organisme)
-           VALUES (%s, %s, %s)
+          """INSERT INTO Gen (Gen_ID)
+              VALUES (%s)
            ON CONFLICT (Gen_ID) DO NOTHING""",
-        (gen_id, gen_id, hit.get("organism_name")),
+          (gen_id,),
     )
     return gen_id
 
@@ -38,18 +38,17 @@ def _eiwit_toevoegen(cur, hit, gen_id):
     cur.execute(
         """INSERT INTO Eiwit (
                Eiwit_ID, Gen_ID, Naam,
-               Aminozuursequentie, Lengte,
+               Aminozuursequentie,
                Evalue, Bit_score, Gaps,
                Query_start, Query_eind,
                Onderwerp_start, Onderwerp_eind
-           ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+           ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
            RETURNING ID""",
         (
                hit["accession"],
                gen_id,
                hit.get("protein_name"),
                hit.get("sequence"),
-               hit.get("length"),
                hit.get("evalue"),
                hit.get("bitscore"),
                hit.get("gaps"),
