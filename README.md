@@ -13,3 +13,4 @@ python3 main.py seq.fasta proteome.fasta
 ```
 
 Isoformnamen uit de headers van het opgegeven proteoombestand worden samen met de UniProt-accession in `Isomeer` opgeslagen.
+Het tweede argument is het proteoombestand dat als BLAST-database wordt gebruikt. BLASTX zoekt met een E-valuegrens van `1e-5` en maximaal vijf hits per query. De hits worden verrijkt met UniProt- en KEGG-annotaties, waaronder GO-termen en pathways, en opgeslagen in PostgreSQL.

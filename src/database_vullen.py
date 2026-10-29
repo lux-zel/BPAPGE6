@@ -1,8 +1,20 @@
 def database_vullen(conn, hits, isoforms=()):
     """Sla verrijkte BLAST-hits en FASTA-isoformen op in de database."""
+    beste_hits = {}
+    for hit in hits:
+        accession = hit["accession"]
+        huidige_hit = beste_hits.get(accession)
+        huidige_score = huidige_hit.get("bitscore") if huidige_hit else None
+        hit_score = hit.get("bitscore")
+        if huidige_hit is None or (
+            hit_score is not None
+            and (huidige_score is None or hit_score > huidige_score)
+        ):
+            beste_hits[accession] = hit
+
     with conn:
         with conn.cursor() as cur:
-            for hit in hits:
+            for hit in beste_hits.values():
                 gen_id = _gen_toevoegen(cur, hit)
                 eiwit_id = _eiwit_toevoegen(cur, hit, gen_id)
                 _functie_toevoegen(cur, hit, eiwit_id)
