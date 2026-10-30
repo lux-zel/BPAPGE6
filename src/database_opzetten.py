@@ -63,6 +63,7 @@ def eiwit_aanmaken():
     return """CREATE TABLE Eiwit (
         ID SERIAL PRIMARY KEY,
         Eiwit_ID VARCHAR(50) UNIQUE,
+        Query_ID TEXT,
         Gen_ID VARCHAR(50),
         Naam TEXT,
         Aminozuursequentie TEXT,

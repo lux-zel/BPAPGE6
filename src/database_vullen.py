@@ -49,15 +49,16 @@ def _eiwit_toevoegen(cur, hit, gen_id):
     """Voeg een eiwit en de BLAST-HSP toe en geef het database-ID terug."""
     cur.execute(
         """INSERT INTO Eiwit (
-               Eiwit_ID, Gen_ID, Naam,
+               Eiwit_ID, Query_ID, Gen_ID, Naam,
                Aminozuursequentie,
                Evalue, Bit_score, Gaps,
                Query_start, Query_eind,
                Onderwerp_start, Onderwerp_eind
-           ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+           ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
            RETURNING ID""",
         (
                hit["accession"],
+               hit.get("query_id"),
                gen_id,
                hit.get("protein_name"),
                hit.get("sequence"),
